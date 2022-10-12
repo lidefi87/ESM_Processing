@@ -1,0 +1,107 @@
+---
+title: "Accessing CMIP6 ESM data"
+author: "Denisse Fierro Arcos"
+date: "2022-10-12"
+output: 
+  github_document:
+    toc: true
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+In this notebook we will access Coupled Model Intercomparison Project Phase 6 (CMIP6) data from the Earth System Grid Federation ([ESGF](https://esgf.nci.org.au/search/cmip6-nci/)) platform.  
+  
+We will be using some functions from the [epwshiftr](https://github.com/ideas-lab-nus/epwshiftr) package, which have been modified slightly to access ocean and sea ice outputs.
+
+## Loading libraries
+
+```{r libraries, results = "hide", warnings = F, message = F}
+search_CMIP6 <- source("search_download_functions.R")
+library(tidyverse)
+library(metR)
+```
+
+## Examples
+
+```{r}
+idx <- cmip6_index(
+  # Including CMIP (past conditions) and ScenarioMIP (projections) activities
+  activity = c("ScenarioMIP", "CMIP"),
+  
+  # SST, Primary Organic Carbon Production, SIC
+  variable = c("tos", "siconc", "intpp"),
+  
+  # specify report frequent
+  frequency = "mon",
+  
+  # specifying experiment names
+  experiment = c("ssp126", "ssp245", "ssp585", "historical"),
+  
+  # specify GCM name
+  source = "ACCESS-ESM1-5",
+  
+  # specify variant,
+  variant = "r1i1p1f1",
+  
+  # specify years of interest
+  years = NULL,
+  
+  # save to data dictionary
+  save = TRUE
+)
+
+idx
+```
+### Preparing search results to download data
+
+```{r}
+idx <- idx %>% 
+  #Adding a filepath for files to be downloaded as temporary files
+  mutate(out_name = file.path(tempdir(), 
+                              str_split(file_id, pattern = "\\|", simplify = T)[1,1])) %>% 
+  #Removing any datasets ending after 2100
+  filter(lubridate::year(datetime_end) <= 2100)
+
+idx
+```
+
+## Downloading files
+
+```{r}
+download.file(idx$file_url[1], idx$out_name[1])
+```
+
+## Checking contents of netcdf
+```{r}
+GlanceNetCDF(idx$out_name[1])
+```
+
+## Loading dataset with `metR`
+
+```{r}
+ds <- ReadNetCDF(idx$out_name[1], vars = idx$variable_id[1])
+
+#Subsetting dataset: First and last available decades
+dec0 <- ds %>% filter(lubridate::year(time) <= lubridate::year(idx$datetime_start[1])+9)
+decN <- ds %>% filter(lubridate::year(time) >= lubridate::year(idx$datetime_end[1])-9)
+```
+
+## Loading dataset with `stars`
+```{r}
+library(stars)
+dss <- read_stars(idx$out_name[1])
+dss_dim <- st_dimensions(dss)
+dss_0 <- dss[, , , seq(1, length(dss_dim$time$values))[lubridate::year(dss_dim$time$values) <= 1859]]
+
+write_stars(dss_0, "../CMIP6_data/test.nc")
+```
+
+
+
+
+
+

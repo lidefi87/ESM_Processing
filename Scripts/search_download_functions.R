@@ -3,7 +3,7 @@
 #Federation (ESGF) platform (https://esgf.nci.org.au/search/cmip6-nci/).
 #
 #The functions included in this script were slightly modified from 
-#the epwshiftr package (https://github.com/ideas-lab-nus/epwshiftr
+#the epwshiftr package (https://github.com/ideas-lab-nus/epwshiftr)
 
 
 # Loading relevant libraries ----------------------------------------------
@@ -212,8 +212,8 @@ cmip6_index <- function(activity = "ScenarioMIP",
   verb("Querying CMIP6 Dataset Information")
   qd <- e_query(activity = activity, variable = variable, frequency = frequency, 
                 experiment = experiment, source = source, replica = replica, 
-                latest = latest, variant = variant, resolution = resolution, 
-                limit = limit, type = "Dataset", data_node = data_node)
+                latest = latest, variant = variant, limit = limit, type = "Dataset", 
+                data_node = data_node)
   if (!nrow(qd)) 
     return(qd)
   if (nrow(qd) == 10000L) {
@@ -237,8 +237,7 @@ cmip6_index <- function(activity = "ScenarioMIP",
     qf <- e_query(activity = unique(q$activity_drs), variable = unique(q$variable_id), 
                   frequency = unique(q$frequency), experiment = unique(q$experiment_id), 
                   source = unique(q$source_id), variant = unique(q$member_id), 
-                  resolution = unique(q$nominal_resolution), replica = replica, 
-                  latest = latest, type = "File", data_node = data_node)
+                  replica = replica, latest = latest, type = "File", data_node = data_node)
     set(qf, NULL, value = NULL, setdiff(intersect(names(qd), names(qf)), c("dataset_id", "file_url")))
     set(nf, NULL, value = NULL, setdiff(intersect(names(qf), names(nf)), c("dataset_id")))
     dt <- rbindlist(list(dt[!nf, on = "dataset_id"], qf[nf, on = "dataset_id"]), fill = TRUE)
