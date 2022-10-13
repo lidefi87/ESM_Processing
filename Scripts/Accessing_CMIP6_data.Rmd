@@ -16,84 +16,115 @@ knitr::opts_chunk$set(echo = TRUE)
 In this notebook we will access Coupled Model Intercomparison Project Phase 6 (CMIP6) data from the Earth System Grid Federation ([ESGF](https://esgf.nci.org.au/search/cmip6-nci/)) platform.  
   
 We will be using some functions from the [epwshiftr](https://github.com/ideas-lab-nus/epwshiftr) package, which have been modified slightly to access ocean and sea ice outputs.
-
+  
+Once the correct datasets have been identified, a subset of the dataset will be selected and downloaded to your local machine. Here we have chosen to select the first and last decades for each dataset, that is from 1850 to 1859 and from 2005 to 2014 for the historical runs, and from 2015 to 2024 and from 2091 to 2100 for the shared socioeconomic pathways (SSPs). Future scenario runs up to 2300 have been excluded here.
+  
+  
 ## Loading libraries
+The functions adapted from `epwshiftr`, which are on the accompanying `search_download_functions` script will help us connect to the Australian-based ESGF node hosted by the National Computational Infrastructure ([NCI](http://nci.org.au/)). There are several ESGF nodes available worldwide and they can be found [here](https://aims2.llnl.gov/nodes). If you wish to change the node used in the script use the `node_url` parameter of the `cmip6_index` function to provide the link to the search page for the node. The link should look like this: [https://esgf.nci.org.au/esg-search/search/?](https://esgf.nci.org.au/esg-search/search/?) and it points to a `xml` file, which is similar to a table of contents for the datasets available within the node.
+  
+All other libraries allow us to manipulate and save CMIP6 data.
 
 ```{r libraries, results = "hide", warnings = F, message = F}
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
+library(purrr)
 library(metR)
 ```
 
-## Examples
+## Querying ESGF server
+We will use the `cmip6_index` function included in the accompanying `search_download_functions` script to search the Australian node of ESGF. We save the results as a table in our environment.  
+  
+There are thousands of CMIP6 endorsed model outputs available through ESGF, so providing as many parameters as possible in the database search is important to narrow down results. You could refer to the following websites for more information:  
+- [CMIP6 documentation](https://github.com/ES-DOC/esdoc-docs/tree/master/cmip6/experiments/spreadsheet)
+- [CMIP6 controlled vocabulary](https://github.com/WCRP-CMIP/CMIP6_CVs)
+- [World Climate Research Programme (WCRP)](https://www.wcrp-climate.org/modelling-wgcm-mip-catalogue/modelling-wgcm-cmip6-endorsed-mips)
+- [CMIP6 overview](https://pcmdi.llnl.gov/CMIP6/)
+- [CMIP6 Guidance for Data Users](https://pcmdi.llnl.gov/CMIP6/Guide/dataUsers.html)
+- [CMIP6 Data Request](https://clipc-services.ceda.ac.uk/dreq/mipVars.html)
+- [CMIP6 Global Attributes Definitions](https://docs.google.com/document/d/1h0r8RZr_f3-8egBMMh7aqLwy3snpD6_MrDz1q8n5XUk/edit)
+  
+Note that parameters are compulsory, we can provide as many or as little as needed.
 
-```{r}
-idx <- cmip6_index(
-  # Including CMIP (past conditions) and ScenarioMIP (projections) activities
+```{r server_query}
+results_query <- cmip6_index(
+  # This parameter relates to the broad experiment group a dataset belongs to. In this example we consider:
+  # CMIP (past conditions) and ScenarioMIP (future scenarios, SSPs) activities
   activity = c("ScenarioMIP", "CMIP"),
   
-  # SST, Primary Organic Carbon Production, SIC
+  # Standardised name for variables of interest - See CMIP6 Data Request for more information
   variable = c("tos", "siconc", "intpp"),
   
-  # specify report frequent
+  # This ranges from hours to years - See CMIP6 Data Request for frequency available for each variable
   frequency = "mon",
   
-  # specifying experiment names
+  # Specifying experiment names - Descriptions are available in the CMIP6 documentation
   experiment = c("ssp126", "ssp245", "ssp585", "historical"),
   
-  # specify GCM name
+  # Specifying model names - A list of all models can be found in the CMIP6 controlled vocabulary link
   source = "ACCESS-ESM1-5",
   
-  # specify variant,
+  # Specifying variant, which refers to the model run 
   variant = "r1i1p1f1",
   
-  # specify years of interest
+  # Specifying time frame of interest
   years = NULL,
   
-  # save to data dictionary
+  # Save to data dictionary
   save = TRUE
+  
+  # This is how we specify the node that we want to use. The default node is NCI (Australia).
+  #node_url = NULL
 )
 
-idx
+#We will only show the first three results of our search.
+head(results_query, n = 3)
 ```
-### Preparing search results to download data
+### Reviewing and tidying up search results
+We will ensure that any datasets beyond 2100 are removed from our results, and we will also create a new column specifying the directory where our files will be saved.
 
-```{r}
-idx <- idx %>% 
-  #Adding a filepath for files to be downloaded as temporary files
-  mutate(out_name = file.path(tempdir(), 
-                              str_split(file_id, pattern = "\\|", simplify = T)[1,1])) %>% 
+```{r results_review}
+results_query <- results_query %>%
+  #Adding a column with filepath for files to be downloaded as temporary files
+  mutate(temp_file = file.path(tempdir(), 
+                              paste0(str_split(dataset_id, pattern = "\\|", 
+                                               simplify = T)[1,1], ".nc"))) %>% 
   #Removing any datasets ending after 2100
-  filter(lubridate::year(datetime_end) <= 2100)
+  filter(year(datetime_end) <= 2100)
 
-idx
+head(results_query, n = 3)
 ```
 
-## Downloading files
+## Downloading datasets
+Once we are happy with our results, we are ready to download the datasets. We will keep them as temporary files only because we only need to store a subset of the original data on file.
 
-```{r}
-download.file(idx$file_url[1], idx$out_name[1])
+```{r download_temporary}
+
+# results_query %>% 
+#   map(download.file(url = .$file_url, destfile = .$temp_file))
+
+download.file(url = results_query$file_url[1], destfile = results_query$temp_file[1])
 ```
 
 ## Checking contents of netcdf
 ```{r}
-GlanceNetCDF(idx$out_name[1])
+GlanceNetCDF(idx$out_name[2])
 ```
 
 ## Loading dataset with `metR`
 
 ```{r}
-ds <- ReadNetCDF(idx$out_name[1], vars = idx$variable_id[1])
+ds <- ReadNetCDF(idx$out_name[2], vars = idx$variable_id[2])
 
 #Subsetting dataset: First and last available decades
-dec0 <- ds %>% filter(lubridate::year(time) <= lubridate::year(idx$datetime_start[1])+9)
-decN <- ds %>% filter(lubridate::year(time) >= lubridate::year(idx$datetime_end[1])-9)
+dec0 <- ds %>% filter(lubridate::year(time) <= lubridate::year(idx$datetime_start[2])+9)
+decN <- ds %>% filter(lubridate::year(time) >= lubridate::year(idx$datetime_end[2])-9)
 ```
 
 ## Loading dataset with `stars`
 ```{r}
 library(stars)
-dss <- read_stars(idx$out_name[1])
+dss <- read_stars(results_query$temp_file[1])
 dss_dim <- st_dimensions(dss)
 dss_0 <- dss[, , , seq(1, length(dss_dim$time$values))[lubridate::year(dss_dim$time$values) <= 1859]]
 

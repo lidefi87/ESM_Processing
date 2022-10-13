@@ -96,7 +96,7 @@ verb <- function(..., sep = ""){
 # Function esgf_query -----------------------------------------------------
 e_query <- function(activity = "ScenarioMIP",
                     variable = c("tos", "siconc", "intpp"), 
-                    frequency = "mon",
+                    frequency = "mon", node_url = NULL,
                     experiment = c("ssp126", "ssp245", "ssp585"), 
                     source = c("CESM2", "CESM2-WACCM", "GFDL-CM4", "GFDL-ESM4", "IPSL-CM6A-LR", "
                                MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM", "ACCESS-ESM1-5"), 
@@ -119,7 +119,9 @@ e_query <- function(activity = "ScenarioMIP",
   assert_count(limit, positive = TRUE)
   assert_choice(type, choices = c("Dataset", "File"))
   assert_character(data_node, any.missing = FALSE, null.ok = TRUE)
-  url_base <- "https://esgf.nci.org.au/esg-search/search/?"
+  if(is.null(node_url)){
+    url_base <- "https://esgf.nci.org.au/esg-search/search/?"
+    }else{url_base <- node_url}
   dict <- c(activity = "activity_id", experiment = "experiment_id", source = "source_id", 
             variable = "variable_id", resolution = "nominal_resolution", variant = "variant_label")
   pair <- function(x, first = FALSE){
@@ -200,7 +202,7 @@ ddir <- function(init = FALSE, force = TRUE){
 # Function init_cmip6_index -----------------------------------------------
 cmip6_index <- function(activity = "ScenarioMIP",
                         variable = c("tos", "siconc", "intpp"), 
-                        frequency = "mon",
+                        frequency = "mon", node_url = NULL,
                         experiment = c("ssp126", "ssp245", "ssp585"), 
                         source = c("CESM2", "CESM2-WACCM", "GFDL-CM4", "GFDL-ESM4", "IPSL-CM6A-LR", 
                                    "MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM", "ACCESS-ESM1-5"), 
@@ -210,7 +212,7 @@ cmip6_index <- function(activity = "ScenarioMIP",
                     null.ok = TRUE)
   assert_flag(save)
   verb("Querying CMIP6 Dataset Information")
-  qd <- e_query(activity = activity, variable = variable, frequency = frequency, 
+  qd <- e_query(activity = activity, variable = variable, frequency = frequency, node_url = NULL,
                 experiment = experiment, source = source, replica = replica, 
                 latest = latest, variant = variant, limit = limit, type = "Dataset", 
                 data_node = data_node)
@@ -235,9 +237,10 @@ cmip6_index <- function(activity = "ScenarioMIP",
                                       "member_id", "experiment_id", "nominal_resolution", 
                                       "table_id", "frequency", "variable_id")])
     qf <- e_query(activity = unique(q$activity_drs), variable = unique(q$variable_id), 
-                  frequency = unique(q$frequency), experiment = unique(q$experiment_id), 
-                  source = unique(q$source_id), variant = unique(q$member_id), 
-                  replica = replica, latest = latest, type = "File", data_node = data_node)
+                  frequency = unique(q$frequency), node_url = NULL,
+                  experiment = unique(q$experiment_id), source = unique(q$source_id), 
+                  variant = unique(q$member_id), replica = replica, latest = latest, 
+                  type = "File", data_node = data_node)
     set(qf, NULL, value = NULL, setdiff(intersect(names(qd), names(qf)), c("dataset_id", "file_url")))
     set(nf, NULL, value = NULL, setdiff(intersect(names(qf), names(nf)), c("dataset_id")))
     dt <- rbindlist(list(dt[!nf, on = "dataset_id"], qf[nf, on = "dataset_id"]), fill = TRUE)
