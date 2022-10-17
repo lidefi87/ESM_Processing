@@ -28,8 +28,9 @@ All other libraries allow us to manipulate and save CMIP6 data.
 ```{r libraries, results = "hide", warnings = F, message = F}
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
-library(purrr)
-library(metR)
+# library(purrr)
+# library(metR)
+library(reticulate)
 ```
 
 ## Querying ESGF server
@@ -80,20 +81,123 @@ results_query <- cmip6_index(
 #We will only show the first three results of our search.
 head(results_query, n = 3)
 ```
+
 ### Reviewing and tidying up search results
-We will ensure that any datasets beyond 2100 are removed from our results, and we will also create a new column specifying the directory where our files will be saved.
+We will add a few extra columns into our results data frame that will help us automate the extraction and storage of the data we need. We will also ensure that any datasets beyond 2100 are removed from our results.
+
+For this example, we are interested in extracting data for the first and last decade of each experiment.
+
+But first, we will provide the file path to the folder where we will save our data.
+
+```{r}
+out_folder <- "/perm_storage/home/data/CMIP6_data"
+```
+
+Now we will add the columns we need to automate process into the search results data frame.
 
 ```{r results_review}
 results_query <- results_query %>%
-  #Adding a column with filepath for files to be downloaded as temporary files
-  mutate(temp_file = file.path(tempdir(), 
-                              paste0(str_split(dataset_id, pattern = "\\|", 
-                                               simplify = T)[1,1], ".nc"))) %>% 
   #Removing any datasets ending after 2100
-  filter(year(datetime_end) <= 2100)
+  filter(year(datetime_end) <= 2100) %>% 
+  #Defining the first and last decade of each experiment
+  mutate(decade_0_start = year(datetime_start),
+         decade_0_end = decade_0_start+9L,
+         decade_N_start = year(datetime_end)-9L,
+         decade_N_end = year(datetime_end),
+         #Defining the name of the model outputs that we will save locally
+         out_file_name = paste0(str_split(dataset_id, pattern = "\\|", 
+                                          simplify = T)[1,1],
+                                ".", decade_0_start, "-", decade_0_end,
+                                "_", decade_N_start, "-", decade_N_end,
+                                ".nc"),
+         #Defining the correct file path for local copies
+         out_full_folder = file.path(out_folder, source_id, experiment_id),
+         #Defining full file path for subset data
+         out_path = file.path(out_full_folder, out_file_name))
 
 head(results_query, n = 3)
 ```
+
+## Accessing and downloading subsets of CMIP6 data
+We will now switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
+
+### Switching to `Python`
+The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using a `conda environment` which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment.
+
+```{r}
+#Activating the conda environment containing relevant Python libraries
+use_condaenv("CMIP6_data")
+```
+
+### Loading `Python` libraries
+```{python}
+#Easy access to data hosted online
+import requests
+
+#Loading and manipulating netcdf files
+from netCDF4 import Dataset
+import xarray as xr
+
+#Standardisation of CMIP6 data for easy data post-processing
+from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon
+
+#Dealing with file paths
+import os
+```
+
+### Transforming CMIP6 search results into a `Python` variable
+```{python}
+CMIP6_query = r.results_query
+CMIP6_query.head(n = 2)
+```
+
+### Accessing and saving CMIP6 data
+We will now load the CMIP6 data into a temporary file in memory, so we can subset it, standardise its variables names and save a local copy. We will loop through each item in the search results.
+```{python}
+#Starting loop
+for i in CMIP6_query.index:
+  #Getting key information to load CMIP6 data locally from query results
+  #URL address (include "#mode=bytes" at the end of the URL if not working)
+  url = CMIP6_query['file_url'][i]
+  #Variable name
+  var_id = CMIP6_query['variable_id'][i]
+  #Start decades
+  dec_0 = CMIP6_query['decade_0_start'][i]
+  dec_N = CMIP6_query['decade_N_start'][i]
+  #File paths
+  out_folder = CMIP6_query['out_full_folder'][i]
+  out_file = CMIP6_query['out_path'][i]
+  
+  #Loading data to memory in a temporary file
+  link = requests.get(url).content
+  remote = Dataset(var_id, memory = link)
+  
+  #Loading as xarray dataset
+  ds = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
+  
+  #Standardising CMIP6 data
+  ds = rename_cmip6(ds)
+  ds = replace_x_y_nominal_lat_lon(ds)
+  
+  #Subsetting data - First and last decade
+  ds_sub = xr.concat([ds.sel(time = slice(str(dec_0), str(dec_0+9))),\
+  ds.sel(time = slice(str(dec_N), str(dec_N+9)))], dim = 'time')
+  
+  #Ensure folder path exists
+  os.makedirs(out_folder, exist_ok = True)
+  
+  #Saving subsetted dataset
+  ds.to_netcdf(out_file)
+  
+```
+
+
+
+
+
+
+
+
 
 ## Downloading datasets
 Once we are happy with our results, we are ready to download the datasets. We will keep them as temporary files only because we only need to store a subset of the original data on file.
@@ -132,7 +236,23 @@ write_stars(dss_0, "../CMIP6_data/test.nc")
 ```
 
 
+```{python}
+import xarray as xr
+from netCDF4 import Dataset
+import requests
+from xmip.preprocessing import rename_cmip6
 
+url = 'http://esgf.nci.org.au/thredds/fileServer/master/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r1i1p1f1/Omon/intpp/gn/v20191115/intpp_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc#mode=bytes'
+data = requests.get(url).content
 
+link = Dataset('intpp', memory=data)
 
+xr.open_dataset(data, engine = 'netcdf4')
+link
+[print(dim) for dim in link.dimensions.values()]
+[print(dim) for dim in link.variables.values()]
+x = xr.open_dataset(xr.backends.NetCDF4DataStore(link))
+x
+
+```
 
