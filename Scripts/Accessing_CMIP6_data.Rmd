@@ -124,7 +124,7 @@ We will now switch to `Python` to make use of the `xmip` library that allow us t
 ### Switching to `Python`
 The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using a `conda environment` which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment.
 
-```{r}
+```{r , results = "hide", warnings = F, message = F}
 #Activating the conda environment containing relevant Python libraries
 use_condaenv("CMIP6_data")
 ```
@@ -153,7 +153,7 @@ CMIP6_query.head(n = 2)
 
 ### Accessing and saving CMIP6 data
 We will now load the CMIP6 data into a temporary file in memory, so we can subset it, standardise its variables names and save a local copy. We will loop through each item in the search results.
-```{python}
+```{python eval = F}
 #Starting loop
 for i in CMIP6_query.index:
   #Getting key information to load CMIP6 data locally from query results
@@ -192,67 +192,4 @@ for i in CMIP6_query.index:
 ```
 
 
-
-
-
-
-
-
-
-## Downloading datasets
-Once we are happy with our results, we are ready to download the datasets. We will keep them as temporary files only because we only need to store a subset of the original data on file.
-
-```{r download_temporary}
-
-# results_query %>% 
-#   map(download.file(url = .$file_url, destfile = .$temp_file))
-
-download.file(url = results_query$file_url[1], destfile = results_query$temp_file[1])
-```
-
-## Checking contents of netcdf
-```{r}
-GlanceNetCDF(idx$out_name[2])
-```
-
-## Loading dataset with `metR`
-
-```{r}
-ds <- ReadNetCDF(idx$out_name[2], vars = idx$variable_id[2])
-
-#Subsetting dataset: First and last available decades
-dec0 <- ds %>% filter(lubridate::year(time) <= lubridate::year(idx$datetime_start[2])+9)
-decN <- ds %>% filter(lubridate::year(time) >= lubridate::year(idx$datetime_end[2])-9)
-```
-
-## Loading dataset with `stars`
-```{r}
-library(stars)
-dss <- read_stars(results_query$temp_file[1])
-dss_dim <- st_dimensions(dss)
-dss_0 <- dss[, , , seq(1, length(dss_dim$time$values))[lubridate::year(dss_dim$time$values) <= 1859]]
-
-write_stars(dss_0, "../CMIP6_data/test.nc")
-```
-
-
-```{python}
-import xarray as xr
-from netCDF4 import Dataset
-import requests
-from xmip.preprocessing import rename_cmip6
-
-url = 'http://esgf.nci.org.au/thredds/fileServer/master/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r1i1p1f1/Omon/intpp/gn/v20191115/intpp_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc#mode=bytes'
-data = requests.get(url).content
-
-link = Dataset('intpp', memory=data)
-
-xr.open_dataset(data, engine = 'netcdf4')
-link
-[print(dim) for dim in link.dimensions.values()]
-[print(dim) for dim in link.variables.values()]
-x = xr.open_dataset(xr.backends.NetCDF4DataStore(link))
-x
-
-```
 
