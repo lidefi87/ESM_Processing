@@ -151,6 +151,10 @@ matplotlib.use('Agg')
 ### Transforming CMIP6 search results into a `Python` variable
 ```{python}
 CMIP6_query = r.results_query
+#Changing years to integers
+CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
+'decade_N_start': 'int32', 'decade_N_end': 'int32'})
+
 CMIP6_query.head(n = 2)
 ```
 
@@ -208,7 +212,7 @@ We can load one of the datasets we saved in the previous step to check its conte
 
 ```{python}
 #Loading last dataset saved locally
-ds = xr.open_dataset(out_file)
+ds = xr.open_dataset(CMIP6_query['out_path'][0])
 #Checking contents
 ds
 ```
@@ -216,9 +220,9 @@ ds
 Finally, we can calculate monthly means over the first decade of interest and plot these results.
 ```{python}
 #Selecting the first decade
-ds = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
 #Calculating monthly means and plotting only the first month
-ds.intpp.groupby('time.month').mean('time')[0].plot(levels = 9)
+ds.intpp.mean('time').plot(levels = 9)
 #Show plot
 matplotlib.pyplot.show()
 #Close plot if needed
@@ -229,89 +233,93 @@ matplotlib.pyplot.show()
 ## Calculating monthly means per decade
 For this portion of the script, we will switch back to `R`. We will calculate monthly means per decade and save them locally.
 ```{r}
-#Loading raster
-r <- nc_open(results_query$out_file_name[1])
-#Accessing variable of interest
-var <- ncvar_get(r, results_query$variable_id[1])
-#Accessing coordinates - notice these are 2D arrays
-lon <- ncvar_get(r, "lon")
-lat <- ncvar_get(r, "lat")
-#Creating 1D index for coordinates for easy plotting
-#longitude coordinates formatted -180 to +180
-x <- ifelse(lon[,1,1] > 180, lon[,1,1]-360, lon[,1,1])
-y <- lat[1,,1]
-#Accessing time dimension 
-time <- ncvar_get(r, "time")
-
-#Reordering variables along x axis for easy plotting
-var <- var[order(x),,]
-lon <- lon[order(x),,]
-x <- x[order(x)]
-
-#Converting time from integers to dates
-#Extracting date time origin
-origin <- str_extract(ncatt_get(r, "time", "units")$value, "\\d{4}-\\d{2}-\\d{2}")
-#Saving converted dates into tibble
-ds_dates <- time %>% 
-  as_tibble() %>% 
-  #Adding column ID for easy reference
-  rowid_to_column("id") %>% 
-  #Adding month, year and decade
-  mutate(time = as_date(value, origin = origin),
-         year = year(time),
-         month = month(time),
-         #First decade classified as 1, final decade identified as 2
-         dec = case_when(year <= results_query$decade_0_end ~ 1,
-                         T ~ 2)) %>% 
-  #Removing original time values
-  select(-value)
-
-dec_month_mean <- list()
-#Calculating monthly means per decade
-for(d in unique(ds_dates$dec)){
-  month_mean <- list()
-  for(m in 1:12){
-    #Slicing dataset per month/decade
-    #Identifying indices
-    ind <- ds_dates %>% 
-      filter(dec == d & month == m) %>% 
-      select(id) %>% 
-      pull()
-    #Calculating monthly means and reordering for easy plotting
-    var <- var
-    month_mean[[m]] <- apply(var[,,ind], 1:2, mean, na.rm = T)
-  }
-  #Creating a single file per decade
-  dec_month_mean[[d]] <- array(unlist(month_mean), dim = c(length(x), length(y), 12))
-  }
-dec_time <- month.name
-dec_time_units <- "month"
-
-image(x, y, dec_month_mean[[1]][,,1], col=rev(RColorBrewer::brewer.pal(9,"YlGnBu")))
-
-#Creating netcdf
-#Indexes
-xdim <- ncdim_def("x", "degrees_east", x)
-ydim <- ncdim_def("y", "degrees_north", y)
-timedim <- ncdim_def("month", "month of the year", 1:12)
-clim_ds <- ncvar_def("monthly_mean", ncatt_get(r, "intpp")$units,
-                     list(xdim, ydim, timedim), ncatt_get(r, "intpp")$missing_value,
-                     paste0("Monthly mean ", ncatt_get(r, "intpp")$long_name))
-lon_ds <- ncvar_def("lon", ncatt_get(r, "lon")$units,
-                     list(xdim, ydim, timedim), ncatt_get(r, "lon")$missing_value,
-                     ncatt_get(r, "lon")$long_name)
-lat_ds <- ncvar_def("lat", ncatt_get(r, "lat")$units,
-                     list(xdim, ydim, timedim), ncatt_get(r, "lat")$missing_value,
-                     ncatt_get(r, "lat")$long_name)
-global_atts <- ncatt_get(r, 0)
-
-ncout <- nc_create("test1.nc", list(clim_ds, lon_ds, lat_ds), force_v4 = T)
-ncvar_put(ncout, clim_ds, dec_month_mean[[1]])
-ncvar_put(ncout, lon_ds, lon[,,1:12])
-ncvar_put(ncout, lat_ds, lat[,,1:12])
-for(i in 1:length(global_atts)){
-  ncatt_put(ncout, 0, names(global_atts)[i], global_atts[[i]])
+for(i in 1:nrow(results_query)){
+  #Loading raster
+  r <- nc_open(results_query$out_path[i])
+  #Accessing variable of interest
+  var <- ncvar_get(r, results_query$variable_id[i])
+  #Accessing coordinates - notice these are 2D arrays
+  lon <- ncvar_get(r, "lon")
+  lat <- ncvar_get(r, "lat")
+  #Creating 1D index for coordinates for easy plotting
+  #longitude coordinates formatted -180 to +180
+  x <- ifelse(lon[,1,1] > 180, lon[,1,1]-360, lon[,1,1])
+  y <- lat[1,,1]
+  #Accessing time dimension 
+  time <- ncvar_get(r, "time")
+  #Reordering variables along x axis for easy plotting
+  var <- var[order(x),,]
+  lon <- lon[order(x),,]
+  x <- x[order(x)]
+  
+  #Converting time from integers to dates
+  #Extracting date time origin
+  origin <- str_extract(ncatt_get(r, "time", "units")$value, "\\d{4}-\\d{2}-\\d{2}")
+  #Saving converted dates into tibble
+  ds_dates <- time %>% 
+    as_tibble() %>% 
+    #Adding column ID for easy reference
+    rowid_to_column("id") %>% 
+    #Adding month, year and decade
+    mutate(time = as_date(value, origin = origin),
+           year = year(time),
+           month = month(time),
+           #First decade classified as 1, final decade identified as 2
+           dec = case_when(year <= results_query$decade_0_end ~ 1,
+                           T ~ 2)) %>% 
+    #Removing original time values
+    select(-value)
+  
+  #Calculating monthly means per decade
+  for(d in unique(ds_dates$dec)){
+    month_mean <- list()
+    for(m in 1:12){
+      #Slicing dataset per month/decade
+      #Identifying indices
+      ind <- ds_dates %>% 
+        filter(dec == d & month == m) %>% 
+        select(id) %>% 
+        pull()
+      #Calculating monthly means and reordering for easy plotting
+      var <- var
+      month_mean[[m]] <- apply(var[,,ind], 1:2, mean, na.rm = T)
+    }
+    #Creating a single file per decade
+    dec_month_mean <- array(unlist(month_mean), dim = c(length(x), length(y), 12))
+    
+    #Creating netcdf
+    #Indexes
+    xdim <- ncdim_def("x", "degrees_east", x)
+    ydim <- ncdim_def("y", "degrees_north", y)
+    timedim <- ncdim_def("month", "month of the year", 1:12)
+    clim_ds <- ncvar_def("monthly_mean", ncatt_get(r, results_query$variable_id[i])$units,
+                         list(xdim, ydim, timedim), 
+                         ncatt_get(r, results_query$variable_id[i])$missing_value,
+                         paste0("Monthly mean ",
+                                ncatt_get(r, results_query$variable_id[i])$long_name))
+    lon_ds <- ncvar_def("lon", ncatt_get(r, "lon")$units,
+                         list(xdim, ydim, timedim), ncatt_get(r, "lon")$missing_value,
+                         ncatt_get(r, "lon")$long_name)
+    lat_ds <- ncvar_def("lat", ncatt_get(r, "lat")$units,
+                         list(xdim, ydim, timedim), ncatt_get(r, "lat")$missing_value,
+                         ncatt_get(r, "lat")$long_name)
+    global_atts <- ncatt_get(r, 0)
+    
+    file_name <- paste0(results_query$base_file_name[i], ".MonthlyMean.", 
+                        results_query$decade_0_start[i], "-", 
+                        results_query$decade_0_end[i], ".nc")
+    file_out <- file.path(results_query$out_full_folder[i], file_name)
+    
+    ncout <- nc_create(file_out, list(clim_ds, lon_ds, lat_ds), force_v4 = T)
+    ncvar_put(ncout, clim_ds, dec_month_mean[[1]])
+    ncvar_put(ncout, lon_ds, lon[,,1:12])
+    ncvar_put(ncout, lat_ds, lat[,,1:12])
+    for(i in 1:length(global_atts)){
+      ncatt_put(ncout, 0, names(global_atts)[i], global_atts[[i]])
+    }
+    
+    nc_close(ncout)
+    }
 }
 
-nc_close(ncout)
 ```
