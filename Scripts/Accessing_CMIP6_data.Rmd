@@ -311,7 +311,7 @@ for(i in 1:nrow(results_query)){
     file_out <- file.path(results_query$out_full_folder[i], file_name)
     
     ncout <- nc_create(file_out, list(clim_ds, lon_ds, lat_ds), force_v4 = T)
-    ncvar_put(ncout, clim_ds, dec_month_mean[[1]])
+    ncvar_put(ncout, clim_ds, dec_month_mean)
     ncvar_put(ncout, lon_ds, lon[,,1:12])
     ncvar_put(ncout, lat_ds, lat[,,1:12])
     for(i in 1:length(global_atts)){
