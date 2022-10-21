@@ -152,11 +152,11 @@ e_query <- function(activity = "ScenarioMIP",
   q <- tryCatch(jsonlite::read_json(q), warning = function(w) w, 
                 error = function(e) e)
   if (inherits(q, "warning") || inherits(q, "error")) {
-    message("No matched data. Please check network connection and the availability of LLNL ESGF node.")
+    message("No matched data. Please check network connection and the availability of NCI ESGF node.")
     dt <- data.table()
   }
   else if (q$response$numFound == 0L) {
-    message("No matched data. Please examine the actual response using 'attr(x, \"response\")'.")
+    message("No matched data. Please use different ESGF node.")
     dt <- data.table()
   }
   else if (type == "Dataset") {
