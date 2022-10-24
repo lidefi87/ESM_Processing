@@ -382,7 +382,8 @@ for(i in 1:nrow(results_query)){
     
     #Closing the file so it is saved on disk
     nc_close(ncout)
-    }
+  }
+  nc_close(r)
 }
 
 ```
