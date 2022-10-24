@@ -117,6 +117,51 @@ results_query <- results_query %>%
 head(results_query, n = 3)
 ```
 
+We can also carry out a search using a variable name only.
+
+```{r server_query}
+results_query_intpp <- cmip6_index(
+  # This parameter relates to the broad experiment group a dataset belongs to. In this example we consider:
+  # CMIP (past conditions) and ScenarioMIP (future scenarios, SSPs) activities
+  activity = c("ScenarioMIP", "CMIP"),
+  
+  # Standardised name for variables of interest - See CMIP6 Data Request for more information
+  variable = "intpp",
+  
+  # This ranges from hours to years - See CMIP6 Data Request for frequency available for each variable
+  frequency = "mon",
+  
+  # Specifying experiment names - Descriptions are available in the CMIP6 documentation
+  experiment = "ssp245",
+  
+  # Specifying variant, which refers to the model run 
+  variant = "r1i1p1f1",
+  
+  # This is how we specify the node that we want to use. The default node is NCI (Australia).
+  node_url = "https://esgf-node.llnl.gov/esg-search/search/?") %>%
+  #Removing any datasets ending after 2100
+  filter(year(datetime_end) <= 2100) %>% 
+  #Defining the first and last decade of each experiment
+  mutate(decade_0_start = year(datetime_start),
+         decade_0_end = decade_0_start+9L,
+         decade_N_start = year(datetime_end)-9L,
+         decade_N_end = year(datetime_end),
+         #Defining the name of the model outputs that we will save locally
+         base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
+         out_file_name = paste0(base_file_name, ".", decade_0_start, "-", 
+                                decade_0_end, "_", decade_N_start, "-", 
+                                decade_N_end, ".nc"),
+         #Defining the correct file path for local copies
+         out_full_folder = file.path(out_folder, source_id, experiment_id),
+         #Defining full file path for subset data
+         out_path = file.path(out_full_folder, out_file_name))
+
+
+#We will only show the first three results of our search.
+head(results_query_intpp, n = 3)
+```
+
+
 ## Accessing and downloading subsets of CMIP6 data
 We will now switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
 
@@ -138,7 +183,7 @@ from netCDF4 import Dataset
 import xarray as xr
 
 #Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon
+from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon, promote_empty_dims, broadcast_lonlat
 
 #Dealing with file paths
 import os
@@ -150,7 +195,8 @@ matplotlib.use('Agg')
 
 ### Transforming CMIP6 search results into a `Python` variable
 ```{python}
-CMIP6_query = r.results_query
+# CMIP6_query = r.results_query
+CMIP6_query = r.results_query_intpp
 #Changing years to integers
 CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
 'decade_N_start': 'int32', 'decade_N_end': 'int32'})
@@ -186,6 +232,8 @@ def download_CMIP6(df):
   
   #Standardising CMIP6 data
   ds = rename_cmip6(ds)
+  ds = promote_empty_dims(ds)
+  ds = broadcast_lonlat(ds)
   ds = replace_x_y_nominal_lat_lon(ds)
   
   #Subsetting data - First and last decade and stitching them together
@@ -204,7 +252,7 @@ def download_CMIP6(df):
 #Starting loop
 for i in CMIP6_query.index:
   download_CMIP6(CMIP6_query.iloc[i,])
-  
+
 ```
 
 ### Checking subsetted data
@@ -328,8 +376,8 @@ for(i in 1:nrow(results_query)){
     ncvar_put(ncout, clim_ds, dec_month_mean)
     ncvar_put(ncout, lon_ds, lon[,,1:12])
     ncvar_put(ncout, lat_ds, lat[,,1:12])
-    for(i in 1:length(global_atts)){
-      ncatt_put(ncout, 0, names(global_atts)[i], global_atts[[i]])
+    for(j in 1:length(global_atts)){
+      ncatt_put(ncout, 0, names(global_atts)[j], global_atts[[j]])
     }
     
     #Closing the file so it is saved on disk
