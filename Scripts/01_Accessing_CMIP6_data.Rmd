@@ -30,7 +30,6 @@ search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
 library(reticulate)
 library(lubridate)
-library(ncdf4)
 ```
 
 ## Querying ESGF server
@@ -116,38 +115,58 @@ results_query <- results_query %>%
 
 head(results_query, n = 3)
 ```
+Now that we are happy with our results, we will save them to disk for future reference.
+```{r}
+write_csv(results_query, "../Outputs/results_query.csv")
+```
 
-We can also carry out a search using a variable name only.
+
+## Querying ESGF server: Serarching for one specific variable
+We can also carry out a search using a variable name only as shown in the example below. We are using `intpp` which refers to primary productivity.
 
 ```{r server_query}
-results_query_intpp <- cmip6_index(
-  # This parameter relates to the broad experiment group a dataset belongs to. In this example we consider:
-  # CMIP (past conditions) and ScenarioMIP (future scenarios, SSPs) activities
-  activity = c("ScenarioMIP", "CMIP"),
+# Standardised name for variables of interest - See CMIP6 Data Request for more information
+results_query_intpp <- cmip6_index(variable = "intpp",
   
-  # Standardised name for variables of interest - See CMIP6 Data Request for more information
-  variable = "intpp",
-  
-  # This ranges from hours to years - See CMIP6 Data Request for frequency available for each variable
+  # We are interested in monthly data only
   frequency = "mon",
   
-  # Specifying experiment names - Descriptions are available in the CMIP6 documentation
+  # We will only consider scenario SSP245
   experiment = "ssp245",
   
   # Specifying variant, which refers to the model run 
   variant = "r1i1p1f1",
   
   # This is how we specify the node that we want to use. The default node is NCI (Australia).
-  node_url = "https://esgf-node.llnl.gov/esg-search/search/?") %>%
+  node_url = "https://esgf-node.llnl.gov/esg-search/search/?")
+
+head(results_query_intpp, n = 3)
+```
+We can further refine search results using the `filter` function from the `dplyr` package, which is part of the `tidyverse`. We will remove any datasets going beyond 2100 and those results that do not have their native grid (labelled `gn` under the `grid_label` column). Finally, we will check if a single model has multiple files available for `intpp`, and we will keep only the rows containing the years we are interested in.
+
+```{r}
+results_query_intpp <- results_query_intpp %>%
   #Removing any datasets ending after 2100
   filter(year(datetime_end) <= 2100) %>% 
-  #Defining the first and last decade of each experiment
-  mutate(decade_0_start = year(datetime_start),
+  #Select only results with native grid
+  filter(grid_label == "gn") %>% 
+  #Checking if one model has multiple files - Select only files for the first and last decade
+  group_by(dataset_id) %>% 
+  mutate(count = n(),
+         #Defining the first and last decade of each experiment
+         decade_0_start = min(year(datetime_start)),
          decade_0_end = decade_0_start+9L,
-         decade_N_start = year(datetime_end)-9L,
-         decade_N_end = year(datetime_end),
-         #Defining the name of the model outputs that we will save locally
-         base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
+         decade_N_end = max(year(datetime_end)),
+         decade_N_start = decade_N_end-9L,
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_start) >= decade_N_start ~ T,
+                          count <= 2 ~ T,
+                          T ~ F)) %>% 
+  #Grouping removed - No longer needed
+  ungroup() %>% 
+  filter(keep == T) %>%
+  #Defining the name of the model outputs that we will save locally
+  mutate(base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
          out_file_name = paste0(base_file_name, ".", decade_0_start, "-", 
                                 decade_0_end, "_", decade_N_start, "-", 
                                 decade_N_end, ".nc"),
@@ -156,9 +175,13 @@ results_query_intpp <- cmip6_index(
          #Defining full file path for subset data
          out_path = file.path(out_full_folder, out_file_name))
 
-
 #We will only show the first three results of our search.
 head(results_query_intpp, n = 3)
+```
+
+We will save these results to disk for future reference.
+```{r}
+write_csv(results_query_intpp, "../Outputs/results_query_intpp.csv")
 ```
 
 
@@ -181,6 +204,7 @@ import requests
 #Loading and manipulating netcdf files
 from netCDF4 import Dataset
 import xarray as xr
+import numpy as np
 
 #Standardisation of CMIP6 data for easy data post-processing
 from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon, promote_empty_dims, broadcast_lonlat
@@ -212,24 +236,27 @@ def download_CMIP6(df):
   #URL address (include "#mode=bytes" at the end of the URL if not working)
   url = df['file_url']
   #Variable name
-  var_id = df['variable_id']
+  var_id = df['variable_id'][0]
   #Start decades
-  dec_0 = int(df['decade_0_start'])
-  dec_N = int(df['decade_N_start'])
+  dec_0 = int(df['decade_0_start'][0])
+  dec_N = int(df['decade_N_start'][0])
   #File paths
-  out_folder = df['out_full_folder']
+  out_folder = df['out_full_folder'][0]
   #Ensuring folder exists
   os.makedirs(out_folder, exist_ok = True)
   #File name with full path
-  out_file = df['out_path']
+  out_file = df['out_path'][0]
   
-  #Loading data to memory in a temporary file
-  link = requests.get(url).content
-  remote = Dataset(var_id, memory = link)
-  
-  #Loading as xarray dataset
-  ds = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
-  
+  ds = []
+  for ind in df.index:
+    #Loading data to memory in a temporary file
+    link = requests.get(url[ind]).content
+    remote = Dataset(var_id, memory = link)
+    #Loading as xarray dataset
+    sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
+    ds.append(sub)
+  ds = xr.concat(ds, dim = 'time')
+    
   #Standardising CMIP6 data
   ds = rename_cmip6(ds)
   ds = promote_empty_dims(ds)
@@ -250,8 +277,9 @@ def download_CMIP6(df):
 
 ```{python}
 #Starting loop
-for i in CMIP6_query.index:
-  download_CMIP6(CMIP6_query.iloc[i,])
+for mod in np.unique(CMIP6_query['source_id']):
+  mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
+  download_CMIP6(mod_id)
 
 ```
 
@@ -265,125 +293,16 @@ ds = xr.open_dataset(CMIP6_query['out_path'][0])
 ds
 ```
 
+### Plotting results
 Finally, we can calculate monthly means over the first decade of interest and plot these results.
 ```{python}
 #Selecting the first decade
 ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
 #Calculating monthly means and plotting only the first month
-ds.intpp.mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][0]].mean('time').plot(levels = 9)
 #Show plot
 matplotlib.pyplot.show()
 #Close plot if needed
-#matplotlib.pyplot.close()
+# matplotlib.pyplot.close()
 ```
 
-
-## Calculating monthly means per decade
-For this portion of the script, we will switch back to `R`. We will calculate monthly means per decade and save them locally.
-```{r}
-for(i in 1:nrow(results_query)){
-  #Loading raster
-  r <- nc_open(results_query$out_path[i])
-  #Accessing variable of interest
-  var <- ncvar_get(r, results_query$variable_id[i])
-  #Accessing coordinates - notice these are 2D arrays
-  lon <- ncvar_get(r, "lon")
-  lat <- ncvar_get(r, "lat")
-  #Creating 1D index for coordinates for easy plotting
-  #longitude coordinates formatted -180 to +180
-  x <- ifelse(lon[,1,1] > 180, lon[,1,1]-360, lon[,1,1])
-  y <- lat[1,,1]
-  #Accessing time dimension 
-  time <- ncvar_get(r, "time")
-  #Reordering variables along x axis for easy plotting
-  var <- var[order(x),,]
-  lon <- lon[order(x),,]
-  x <- x[order(x)]
-  
-  #Getting years where decade 0 and decade N start from
-  dec0 <- results_query$decade_0_start[i]
-  decN <- results_query$decade_N_start[i]
-  
-  #Converting time from integers to dates
-  #Extracting date time origin
-  origin <- str_extract(ncatt_get(r, "time", "units")$value, "\\d{4}-\\d{2}-\\d{2}")
-  #Saving converted dates into tibble
-  ds_dates <- time %>% 
-    as_tibble() %>% 
-    #Adding column ID for easy reference
-    rowid_to_column("id") %>% 
-    #Adding month, year and decade
-    mutate(time = as_date(value, origin = origin),
-           year = year(time),
-           month = month(time),
-           #First decade classified as 1, final decade identified as 2
-           dec = case_when(year <= results_query$decade_0_end[i] ~ 1,
-                           T ~ 2)) %>% 
-    #Removing original time values
-    select(-value)
-  
-  #Calculating monthly means per decade
-  for(d in unique(ds_dates$dec)){
-    month_mean <- list()
-    for(m in 1:12){
-      #Slicing dataset per month/decade
-      #Identifying indices
-      ind <- ds_dates %>% 
-        filter(dec == d & month == m) %>% 
-        select(id) %>% 
-        pull()
-      #Calculating monthly means and reordering for easy plotting
-      month_mean[[m]] <- apply(var[,,ind], 1:2, mean, na.rm = T)
-    }
-    #Creating a single file per decade
-    dec_month_mean <- array(unlist(month_mean), dim = c(length(x), length(y), 12))
-    
-    #Creating netcdf
-    #Adding lat and lon coordinates as indexes
-    xdim <- ncdim_def("x", "degrees_east", x)
-    ydim <- ncdim_def("y", "degrees_north", y)
-    #Adding time dimension
-    timedim <- ncdim_def("month", "month of the year", 1:12)
-    #Adding monthly mean
-    clim_ds <- ncvar_def("monthly_mean", ncatt_get(r, results_query$variable_id[i])$units,
-                         list(xdim, ydim, timedim), 
-                         ncatt_get(r, results_query$variable_id[i])$missing_value,
-                         paste0("Monthly mean ",
-                                ncatt_get(r, results_query$variable_id[i])$long_name))
-    #Adding lat and lon as separate dimension
-    lon_ds <- ncvar_def("lon", ncatt_get(r, "lon")$units,
-                         list(xdim, ydim, timedim), ncatt_get(r, "lon")$missing_value,
-                         ncatt_get(r, "lon")$long_name)
-    lat_ds <- ncvar_def("lat", ncatt_get(r, "lat")$units,
-                         list(xdim, ydim, timedim), ncatt_get(r, "lat")$missing_value,
-                         ncatt_get(r, "lat")$long_name)
-    #Copying global attributes from original file
-    global_atts <- ncatt_get(r, 0)
-    
-    
-    #Naming monthly mean files per decade
-    if(d == 1){
-      dec_start <- dec0
-    }else{dec_start <- decN}
-    #Creating file name
-    file_name <- paste0(results_query$base_file_name[i], ".MonthlyMean.", 
-                        dec_start, "-", (dec_start+9), ".nc")
-    #Creating full path
-    file_out <- file.path(results_query$out_full_folder[i], file_name)
-    
-    #Putting everything together in one file
-    ncout <- nc_create(file_out, list(clim_ds, lon_ds, lat_ds), force_v4 = T)
-    ncvar_put(ncout, clim_ds, dec_month_mean)
-    ncvar_put(ncout, lon_ds, lon[,,1:12])
-    ncvar_put(ncout, lat_ds, lat[,,1:12])
-    for(j in 1:length(global_atts)){
-      ncatt_put(ncout, 0, names(global_atts)[j], global_atts[[j]])
-    }
-    
-    #Closing the file so it is saved on disk
-    nc_close(ncout)
-  }
-  nc_close(r)
-}
-
-```
