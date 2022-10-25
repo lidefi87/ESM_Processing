@@ -1,4 +1,4 @@
-Calculating monthly means using CMIP6 ESM data
+Calculating monthly means in R using CMIP6 ESM data
 ================
 Denisse Fierro Arcos
 2022-10-24
@@ -10,6 +10,8 @@ Denisse Fierro Arcos
     -   <a href="#calculating-monthly-means-per-decade"
         id="toc-calculating-monthly-means-per-decade">Calculating monthly means
         per decade</a>
+    -   <a href="#plotting-results" id="toc-plotting-results">Plotting
+        results</a>
 
 # Introduction
 
@@ -160,4 +162,13 @@ for(i in 1:nrow(results_query)){
   }
   nc_close(r)
 }
+```
+
+## Plotting results
+
+We will use the results of the last item in the loop to create a simple
+plot with the mean monthly values for January.
+
+``` r
+image(dec_month_mean[,,1])
 ```

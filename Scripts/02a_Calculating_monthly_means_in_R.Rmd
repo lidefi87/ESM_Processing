@@ -1,5 +1,5 @@
 ---
-title: "Calculating monthly means using CMIP6 ESM data"
+title: "Calculating monthly means in R using CMIP6 ESM data"
 author: "Denisse Fierro Arcos"
 date: "2022-10-24"
 output: 
@@ -150,4 +150,12 @@ for(i in 1:nrow(results_query)){
 }
 
 ```
+
+
+## Plotting results
+We will use the results of the last item in the loop to create a simple plot with the mean monthly values for January.
+```{r eval = F}
+image(dec_month_mean[,,1])
+```
+
 
