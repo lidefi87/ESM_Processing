@@ -121,10 +121,10 @@ write_csv(results_query, "../Outputs/results_query.csv")
 ```
 
 
-## Querying ESGF server: Serarching for one specific variable
+## Querying ESGF server: Searching for one specific variable
 We can also carry out a search using a variable name only as shown in the example below. We are using `intpp` which refers to primary productivity.
 
-```{r server_query}
+```{r server_query_var}
 # Standardised name for variables of interest - See CMIP6 Data Request for more information
 results_query_intpp <- cmip6_index(variable = "intpp",
   
@@ -275,7 +275,7 @@ def download_CMIP6(df):
 
 ```
 
-```{python}
+```{python, eval = F}
 #Starting loop
 for mod in np.unique(CMIP6_query['source_id']):
   mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
