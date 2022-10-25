@@ -123,11 +123,7 @@ results_query <- cmip6_index(
   years = NULL,
   
   # Save to data dictionary
-  save = TRUE
-  
-  # This is how we specify the node that we want to use. The default node is NCI (Australia).
-  #node_url = "https://esgf-node.llnl.gov/esg-search/search/?"
-)
+  save = TRUE)
 
 #We will only show the first three results of our search.
 head(results_query, n = 3)
@@ -180,7 +176,8 @@ For this example, we are interested in extracting data for the first and
 last decade of each experiment.
 
 But first, we will provide the file path to the folder where we will
-save our data.
+save our data. Note that you must update this path to a folder where you
+would like to save the CMIP6 files of interest.
 
 ``` r
 out_folder <- "/perm_storage/home/data/CMIP6_data"
@@ -286,7 +283,7 @@ productivity.
 results_query_intpp <- cmip6_index(variable = "intpp",
   
   # We are interested in monthly data only
-  frequency = "mon",
+  # frequency = "mon",
   
   # We will only consider scenario SSP245
   experiment = "ssp245",
@@ -294,8 +291,11 @@ results_query_intpp <- cmip6_index(variable = "intpp",
   # Specifying variant, which refers to the model run 
   variant = "r1i1p1f1",
   
-  # This is how we specify the node that we want to use. The default node is NCI (Australia).
+  source = c("MPI-ESM1-2-LR", "CMCC-ESM2", "ACCESS-ESM1-5", "EC-Earth3-CC", "IPSL-CM6A-LR", "MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM"),
+   
+  # # This is how we specify the node that we want to use. The default node is NCI (Australia).
   node_url = "https://esgf-node.llnl.gov/esg-search/search/?")
+
 
 head(results_query_intpp, n = 3)
 ```
@@ -442,6 +442,10 @@ matplotlib.use('Agg')
 
 ### Transforming CMIP6 search results into a `Python` variable
 
+In this step we can use either of the search results. In the example
+below, we will be working with the search results for the `intpp`
+variable.
+
 ``` python
 # CMIP6_query = r.results_query
 CMIP6_query = r.results_query_intpp
@@ -574,3 +578,8 @@ matplotlib.pyplot.show()
 ```
 
 ![](01_Accessing_CMIP6_data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+We have successfully search the CMIP6 database, narrowed down our
+results and downloaded a subset of the data we needed. In the next
+notebook, we will show how to calculate monthly means and saving the
+results as a `netcdf` file using `R` and `Python`.
