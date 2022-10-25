@@ -17,7 +17,7 @@ In this notebook, we will use `R` to calculate monthly means for the data downlo
 
 
 ```{r cars}
-summary(cars)
+# summary(cars)
 ```
 
 
@@ -25,24 +25,24 @@ summary(cars)
 ## Calculating monthly means per decade
 For this portion of the script, we will switch back to `R`. We will calculate monthly means per decade and save them locally.
 ```{r}
-for(i in 1:nrow(results_query)){
-  #Loading raster
-  r <- nc_open(results_query$out_path[i])
-  #Accessing variable of interest
-  var <- ncvar_get(r, results_query$variable_id[i])
-  #Accessing coordinates - notice these are 2D arrays
-  lon <- ncvar_get(r, "lon")
-  lat <- ncvar_get(r, "lat")
-  #Creating 1D index for coordinates for easy plotting
-  #longitude coordinates formatted -180 to +180
-  x <- ifelse(lon[,1,1] > 180, lon[,1,1]-360, lon[,1,1])
-  y <- lat[1,,1]
-  #Accessing time dimension 
-  time <- ncvar_get(r, "time")
-  #Reordering variables along x axis for easy plotting
-  var <- var[order(x),,]
-  lon <- lon[order(x),,]
-  x <- x[order(x)]
+# for(i in 1:nrow(results_query)){
+#   #Loading raster
+#   r <- nc_open(results_query$out_path[i])
+#   #Accessing variable of interest
+#   var <- ncvar_get(r, results_query$variable_id[i])
+#   #Accessing coordinates - notice these are 2D arrays
+#   lon <- ncvar_get(r, "lon")
+#   lat <- ncvar_get(r, "lat")
+#   #Creating 1D index for coordinates for easy plotting
+#   #longitude coordinates formatted -180 to +180
+#   x <- ifelse(lon[,1,1] > 180, lon[,1,1]-360, lon[,1,1])
+#   y <- lat[1,,1]
+#   #Accessing time dimension 
+#   time <- ncvar_get(r, "time")
+#   #Reordering variables along x axis for easy plotting
+#   var <- var[order(x),,]
+#   lon <- lon[order(x),,]
+#   x <- x[order(x)]
   
   #Getting years where decade 0 and decade N start from
   dec0 <- results_query$decade_0_start[i]
