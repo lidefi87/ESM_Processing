@@ -1,30 +1,29 @@
----
-title: "Accessing CMIP6 ESM data"
-author: "Denisse Fierro Arcos"
-date: "2022-10-24"
-output: 
-  github_document:
-    toc: true
-    html_preview: false
----
+Accessing CMIP6 ESM data
+================
+Denisse Fierro Arcos
+2022-10-24
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+-   <a href="#introduction" id="toc-introduction">Introduction</a>
+    -   <a href="#calculating-monthly-means-per-decade"
+        id="toc-calculating-monthly-means-per-decade">Calculating monthly means
+        per decade</a>
 
 # Introduction
-In this notebook, we will use `R` to calculate monthly means for the data downloaded in the previous step [01_Accessing_CMIP6_data](01_Accessing_CMIP6_data.md).
 
+In this notebook, we will use `R` to calculate monthly means for the
+data downloaded in the previous step
+[01_Accessing_CMIP6_data](01_Accessing_CMIP6_data.md).
 
-```{r cars}
+``` r
 # summary(cars)
 ```
 
-
-
 ## Calculating monthly means per decade
-For this portion of the script, we will switch back to `R`. We will calculate monthly means per decade and save them locally.
-```{r}
+
+For this portion of the script, we will switch back to `R`. We will
+calculate monthly means per decade and save them locally.
+
+``` r
 # for(i in 1:nrow(results_query)){
 #   #Loading raster
 #   r <- nc_open(results_query$out_path[i])
@@ -129,6 +128,4 @@ For this portion of the script, we will switch back to `R`. We will calculate mo
 #   }
 #   nc_close(r)
 # }
-
 ```
-
