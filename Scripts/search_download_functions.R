@@ -98,15 +98,11 @@ e_query <- function(activity = "ScenarioMIP",
                     variable = c("tos", "siconc", "intpp"), 
                     frequency = "mon", node_url = NULL,
                     experiment = c("ssp126", "ssp245", "ssp585"), 
-                    source = c("CESM2", "CESM2-WACCM", "GFDL-CM4", "GFDL-ESM4", "IPSL-CM6A-LR", "
-                               MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM", "ACCESS-ESM1-5"), 
+                    source = names(jsonlite::fromJSON("https://raw.githubusercontent.com/WCRP-CMIP/CMIP6_CVs/master/CMIP6_source_id.json")$source_id), 
                     variant = "r1i1p1f1", replica = FALSE, latest = TRUE, 
                     type = "Dataset", limit = 10000L, data_node = NULL){
   assert_subset(activity, empty.ok = FALSE, 
-                choices = c("AerChemMIP", "C4MIP", "CDRMIP", "CFMIP", "CMIP", "CORDEX", "DAMIP", 
-                            "DCPP", "DynVarMIP", "FAFMIP", "GMMIP", "GeoMIP", "HighResMIP", 
-                            "ISMIP6", "LS3MIP", "LUMIP", "OMIP", "PAMIP", "PMIP", 
-                            "RFMIP", "SIMIP", "ScenarioMIP", "VIACSAB", "VolMIP"))
+                choices = names(jsonlite::fromJSON("https://raw.githubusercontent.com/WCRP-CMIP/CMIP6_CVs/master/CMIP6_activity_id.json")$activity_id))
   assert_character(variable, any.missing = FALSE, null.ok = TRUE)
   assert_subset(frequency, empty.ok = TRUE, 
                 choices = c("1hr", "1hrCM", "1hrPt", "3hr", "3hrPt", "6hr", "6hrPt", "day", 
@@ -138,6 +134,7 @@ e_query <- function(activity = "ScenarioMIP",
       s
     else paste0("&", s)
   }
+  
   `%and%` <- function(lhs, rhs) if (is.null(rhs)) 
     lhs
   else paste0(lhs, rhs)
@@ -204,8 +201,7 @@ cmip6_index <- function(activity = "ScenarioMIP",
                         variable = c("tos", "siconc", "intpp"), 
                         frequency = "mon", node_url = NULL,
                         experiment = c("ssp126", "ssp245", "ssp585"), 
-                        source = c("CESM2", "CESM2-WACCM", "GFDL-CM4", "GFDL-ESM4", "IPSL-CM6A-LR", 
-                                   "MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM", "ACCESS-ESM1-5"), 
+                        source = names(jsonlite::fromJSON("https://raw.githubusercontent.com/WCRP-CMIP/CMIP6_CVs/master/CMIP6_source_id.json")$source_id), 
                         variant = "r1i1p1f1", replica = FALSE, latest = TRUE, 
                         limit = 10000L, data_node = NULL, years = NULL, save = FALSE){
   assert_integerish(years, lower = 1900, unique = TRUE, sorted = TRUE, any.missing = FALSE, 
