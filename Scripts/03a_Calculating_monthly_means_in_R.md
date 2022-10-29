@@ -1,54 +1,77 @@
----
-title: "Calculating monthly means in R using CMIP6 ESM data"
-author: "Denisse Fierro Arcos"
-date: "2022-10-24"
-output: 
-  github_document:
-    toc: true
-    html_preview: false
----
+Calculating monthly means in R using CMIP6 ESM data
+================
+Denisse Fierro Arcos
+2022-10-24
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+-   <a href="#introduction" id="toc-introduction">Introduction</a>
+    -   <a href="#loading-search-results-from-first-notebook"
+        id="toc-loading-search-results-from-first-notebook">Loading search
+        results from <span>first notebook</span></a>
+    -   <a href="#calculating-monthly-means-per-decade"
+        id="toc-calculating-monthly-means-per-decade">Calculating monthly means
+        per decade</a>
+    -   <a href="#plotting-results" id="toc-plotting-results">Plotting
+        results</a>
 
 # Introduction
-In this notebook, we will use the `ncdf4` library in `R` to calculate monthly means using the CMIP6 data downloaded in the previous step: [01_Accessing_CMIP6_data](01_Accessing_CMIP6_data.md). We will then save the results as a netcdf files locally.
 
+In this notebook, we will use the `ncdf4` library in `R` to calculate
+monthly means using the CMIP6 data downloaded in the previous step:
+[02_Downloading_CMIP6_data](02_Downloading_CMIP6_data.md). We will then
+save the results as a netcdf files locally.
 
-```{r libraries, results = "hide", warnings = F, message = F}
+``` r
 library(tidyverse)
 library(lubridate)
 library(ncdf4)
 ```
 
-## Loading search results from [previous step](01_Accessing_CMIP6_data.md)
-In the first notebook, we added a new column that points to the location where the CMIP6 data we are interested in where saved. We will load them to our environment before we calculate the monthly means for each variable.
+## Loading search results from [first notebook](01_Querying_CMIP6_database.md)
 
-Recall from the previous step, some models had multiple files available for the `intpp` variable. We will remove any duplicate entries as we saved a single file with the initial and last decade per model.
+In the first notebook, we added a new column that points to the location
+where the CMIP6 data we are interested in where saved. We will load them
+to our environment before we calculate the monthly means for each
+variable.
 
-```{r}
+Recall from the previous step, some models had multiple files available
+for the `intpp` variable. We will remove any duplicate entries as we
+saved a single file with the initial and last decade per model.
+
+``` r
 #Loading ACCESS-ESM 1.5 query
-results_query <- read_csv("../Outputs/results_query.csv", show_col_types = F) %>% 
-  #Loading intpp variable query
-  bind_rows(read_csv("../Outputs/results_query_intpp.csv", show_col_types = F)) %>% 
-  #Removing duplicate entries
-  distinct(dataset_id, .keep_all = T)
+results_query <- read_csv("../Outputs/results_merged.csv")
 ```
 
+    ## Rows: 51 Columns: 33
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr  (23): file_id, dataset_id, mip_era, activity_drs, institution_id, sourc...
+    ## dbl   (7): version, file_size, count, decade_0_start, decade_0_end, decade_N...
+    ## lgl   (1): keep
+    ## dttm  (2): datetime_start, datetime_end
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 
 ## Calculating monthly means per decade
-There are several `R` packages that could be used to calculate monthly means from `netcdf` files with ease, but most do not offer the option of saving the results as `netcdf` files.
-  
-Here we use the `ncdf4` package to achieve this. The resulting workflow is rather complicated, so if you prefer a more streamlined option, refer to the [`Python` version](02b_Calculating_monthly_means_in_Python.Rmd) of this notebook.
 
-```{r, eval = F}
+There are several `R` packages that could be used to calculate monthly
+means from `netcdf` files with ease, but most do not offer the option of
+saving the results as `netcdf` files.
+
+Here we use the `ncdf4` package to achieve this. The resulting workflow
+is rather complicated, so if you prefer a more streamlined option, refer
+to the [`Python` version](02b_Calculating_monthly_means_in_Python.Rmd)
+of this notebook.
+
+``` r
 # We will loop through the results data frame
 for(i in 1:nrow(results_query)){
   #Loading raster
   r <- nc_open(results_query$out_path[i])
   #Accessing variable of interest
-  var <- ncvar_get(r, results_query$variable_id[i])
+  var_id <- results_query$variable_id[i]
+  var <- ncvar_get(r, var_id)
   #Accessing coordinates - notice these are 2D arrays
   lon <- ncvar_get(r, "lon")
   lat <- ncvar_get(r, "lat")
@@ -108,11 +131,11 @@ for(i in 1:nrow(results_query)){
     #Adding time dimension
     timedim <- ncdim_def("month", "month of the year", 1:12)
     #Adding monthly mean
-    clim_ds <- ncvar_def("monthly_mean", ncatt_get(r, results_query$variable_id[i])$units,
+    clim_ds <- ncvar_def(paste0(var_id, "_monthly_mean"), ncatt_get(r, var_id)$units,
                          list(xdim, ydim, timedim),
-                         ncatt_get(r, results_query$variable_id[i])$missing_value,
+                         ncatt_get(r, var_id)$missing_value,
                          paste0("Monthly mean ",
-                                ncatt_get(r, results_query$variable_id[i])$long_name))
+                                ncatt_get(r, var_id)$long_name))
     #Adding lat and lon as separate dimension
     lon_ds <- ncvar_def("lon", ncatt_get(r, "lon")$units,
                          list(xdim, ydim, timedim), ncatt_get(r, "lon")$missing_value,
@@ -122,7 +145,6 @@ for(i in 1:nrow(results_query)){
                          ncatt_get(r, "lat")$long_name)
     #Copying global attributes from original file
     global_atts <- ncatt_get(r, 0)
-
 
     #Naming monthly mean files per decade
     if(d == 1){
@@ -148,14 +170,15 @@ for(i in 1:nrow(results_query)){
   }
   nc_close(r)
 }
-
 ```
-
 
 ## Plotting results
-We will use the results of the last item in the loop to create a simple plot with the mean monthly values for January.
-```{r eval = F}
-image(dec_month_mean[,,1])
+
+We will use the results of the last item in the loop to create a simple
+plot with the mean monthly values for January.
+
+``` r
+ex <- nc_open(file_out)
+ex_var <- ncvar_get(ex, paste0(var_id, "_monthly_mean"))
+image(ex_var[,,1])
 ```
-
-
