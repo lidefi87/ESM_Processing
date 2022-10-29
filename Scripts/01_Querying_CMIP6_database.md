@@ -1,4 +1,4 @@
-Accessing CMIP6 ESM data
+Querying CMIP6 database
 ================
 Denisse Fierro Arcos
 2022-10-12
@@ -14,24 +14,6 @@ Denisse Fierro Arcos
     -   <a href="#querying-esgf-server-searching-for-one-specific-variable"
         id="toc-querying-esgf-server-searching-for-one-specific-variable">Querying
         ESGF server: Searching for one specific variable</a>
-    -   <a href="#accessing-and-downloading-subsets-of-cmip6-data"
-        id="toc-accessing-and-downloading-subsets-of-cmip6-data">Accessing and
-        downloading subsets of CMIP6 data</a>
-        -   <a href="#switching-to-python" id="toc-switching-to-python">Switching to
-            <code>Python</code></a>
-        -   <a href="#loading-python-libraries"
-            id="toc-loading-python-libraries">Loading <code>Python</code>
-            libraries</a>
-        -   <a href="#transforming-cmip6-search-results-into-a-python-variable"
-            id="toc-transforming-cmip6-search-results-into-a-python-variable">Transforming
-            CMIP6 search results into a <code>Python</code> variable</a>
-        -   <a href="#accessing-and-saving-cmip6-data"
-            id="toc-accessing-and-saving-cmip6-data">Accessing and saving CMIP6
-            data</a>
-        -   <a href="#checking-subsetted-data"
-            id="toc-checking-subsetted-data">Checking subsetted data</a>
-        -   <a href="#plotting-results" id="toc-plotting-results">Plotting
-            results</a>
 
 # Introduction
 
@@ -70,7 +52,6 @@ All other libraries allow us to manipulate and save CMIP6 data.
 ``` r
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
-library(reticulate)
 library(lubridate)
 ```
 
@@ -117,13 +98,7 @@ results_query <- cmip6_index(
   source = c("ACCESS-ESM1-5"),
   
   # Specifying variant, which refers to the model run 
-  variant = "r1i1p1f1",
-  
-  # Specifying time frame of interest
-  years = NULL,
-  
-  # Save to data dictionary
-  save = TRUE)
+  variant = "r1i1p1f1")
 
 #We will only show the first three results of our search.
 head(results_query, n = 3)
@@ -190,8 +165,10 @@ results data frame.
 results_query <- results_query %>%
   #Removing any datasets ending after 2100
   filter(year(datetime_end) <= 2100) %>% 
-  #Defining the first and last decade of each experiment
-  mutate(decade_0_start = year(datetime_start),
+  #Checking if one model has multiple files - Select only files for the first and last decade
+  group_by(dataset_id) %>% 
+  mutate(count = n(),
+         decade_0_start = year(datetime_start),
          decade_0_end = decade_0_start+9L,
          decade_N_start = year(datetime_end)-9L,
          decade_N_end = year(datetime_end),
@@ -203,67 +180,29 @@ results_query <- results_query %>%
          #Defining the correct file path for local copies
          out_full_folder = file.path(out_folder, source_id, experiment_id),
          #Defining full file path for subset data
-         out_path = file.path(out_full_folder, out_file_name))
+         out_path = file.path(out_full_folder, out_file_name),
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_start) >= decade_N_start ~ T,
+                          count <= 2 ~ T,
+                          T ~ F))
 
 head(results_query, n = 3)
 ```
 
-    ##                                                                                                                                                        file_id
-    ## 1: CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.intpp.gn.v20191115.intpp_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc|esgf.nci.org.au
-    ## 2:     CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.tos.gn.v20191115.tos_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc|esgf.nci.org.au
-    ## 3:  CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r1i1p1f1.Omon.intpp.gn.v20191115.intpp_Omon_ACCESS-ESM1-5_ssp245_r1i1p1f1_gn_201501-210012.nc|esgf.nci.org.au
-    ##                                                                                       dataset_id
-    ## 1:    CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.intpp.gn.v20191115|esgf.nci.org.au
-    ## 2:      CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.tos.gn.v20191115|esgf.nci.org.au
-    ## 3: CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r1i1p1f1.Omon.intpp.gn.v20191115|esgf.nci.org.au
-    ##    mip_era activity_drs institution_id     source_id experiment_id member_id
-    ## 1:   CMIP6         CMIP          CSIRO ACCESS-ESM1-5    historical  r1i1p1f1
-    ## 2:   CMIP6         CMIP          CSIRO ACCESS-ESM1-5    historical  r1i1p1f1
-    ## 3:   CMIP6  ScenarioMIP          CSIRO ACCESS-ESM1-5        ssp245  r1i1p1f1
-    ##    table_id frequency grid_label  version nominal_resolution variable_id
-    ## 1:     Omon       mon         gn 20191115             250 km       intpp
-    ## 2:     Omon       mon         gn 20191115             250 km         tos
-    ## 3:     Omon       mon         gn 20191115             250 km       intpp
-    ##                                                 variable_long_name
-    ## 1: Primary Organic Carbon Production by All Types of Phytoplankton
-    ## 2:                                         Sea Surface Temperature
-    ## 3: Primary Organic Carbon Production by All Types of Phytoplankton
-    ##    variable_units datetime_start datetime_end file_size       data_node
-    ## 1:    mol m-2 s-1     1850-01-01   2014-12-01 500537777 esgf.nci.org.au
-    ## 2:           degC     1850-01-01   2014-12-01 490332982 esgf.nci.org.au
-    ## 3:    mol m-2 s-1     2015-01-01   2100-12-01 261237227 esgf.nci.org.au
-    ##                                                                                                                                                                                        file_url
-    ## 1: http://esgf.nci.org.au/thredds/fileServer/master/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r1i1p1f1/Omon/intpp/gn/v20191115/intpp_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc
-    ## 2:     http://esgf.nci.org.au/thredds/fileServer/master/CMIP6/CMIP/CSIRO/ACCESS-ESM1-5/historical/r1i1p1f1/Omon/tos/gn/v20191115/tos_Omon_ACCESS-ESM1-5_historical_r1i1p1f1_gn_185001-201412.nc
-    ## 3:  http://esgf.nci.org.au/thredds/fileServer/master/CMIP6/ScenarioMIP/CSIRO/ACCESS-ESM1-5/ssp245/r1i1p1f1/Omon/intpp/gn/v20191115/intpp_Omon_ACCESS-ESM1-5_ssp245_r1i1p1f1_gn_201501-210012.nc
-    ##                                          dataset_pid
-    ## 1: hdl:21.14100/311d0772-ce1e-3440-8745-85eb365c65e0
-    ## 2: hdl:21.14100/f485bfb8-0aa6-3ba1-a413-9ffa4a2e9ef2
-    ## 3: hdl:21.14100/1997ec1e-1ffb-3133-a4f5-efd9d1f53ab9
-    ##                                          tracking_id decade_0_start
-    ## 1: hdl:21.14100/44046366-ac50-4be5-bf42-e1be7c65e37e           1850
-    ## 2: hdl:21.14100/02850fcc-be64-40de-b7ca-9b8aa6e688a0           1850
-    ## 3: hdl:21.14100/5ab2f881-d384-4b73-b358-25c33a1d8eb7           2015
-    ##    decade_0_end decade_N_start decade_N_end
-    ## 1:         1859           2005         2014
-    ## 2:         1859           2005         2014
-    ## 3:         2024           2091         2100
-    ##                                                                   base_file_name
-    ## 1:    CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.intpp.gn.v20191115
-    ## 2:      CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.tos.gn.v20191115
-    ## 3: CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r1i1p1f1.Omon.intpp.gn.v20191115
-    ##                                                                                           out_file_name
-    ## 1:    CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.intpp.gn.v20191115.1850-1859_2005-2014.nc
-    ## 2:      CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.tos.gn.v20191115.1850-1859_2005-2014.nc
-    ## 3: CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r1i1p1f1.Omon.intpp.gn.v20191115.2015-2024_2091-2100.nc
-    ##                                                out_full_folder
-    ## 1: /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/historical
-    ## 2: /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/historical
-    ## 3:     /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/ssp245
-    ##                                                                                                                                                         out_path
-    ## 1: /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/historical/CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.intpp.gn.v20191115.1850-1859_2005-2014.nc
-    ## 2:   /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/historical/CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1p1f1.Omon.tos.gn.v20191115.1850-1859_2005-2014.nc
-    ## 3:  /perm_storage/home/data/CMIP6_data/ACCESS-ESM1-5/ssp245/CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r1i1p1f1.Omon.intpp.gn.v20191115.2015-2024_2091-2100.nc
+    ## # A tibble: 3 × 33
+    ## # Groups:   dataset_id [3]
+    ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
+    ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
+    ## 1 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
+    ## 2 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
+    ## 3 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
+    ## # … with 24 more variables: frequency <chr>, grid_label <chr>, version <chr>,
+    ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
+    ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
+    ## #   file_size <int>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
+    ## #   tracking_id <chr>, count <int>, decade_0_start <dbl>, decade_0_end <dbl>,
+    ## #   decade_N_start <dbl>, decade_N_end <dbl>, base_file_name <chr>,
+    ## #   out_file_name <chr>, out_full_folder <chr>, out_path <chr>, keep <lgl>, …
 
 Now that we are happy with our results, we will save them to disk for
 future reference.
@@ -283,19 +222,13 @@ productivity.
 results_query_intpp <- cmip6_index(variable = "intpp",
   
   # We are interested in monthly data only
-  # frequency = "mon",
+  frequency = "mon",
   
   # We will only consider scenario SSP245
   experiment = "ssp245",
   
   # Specifying variant, which refers to the model run 
-  variant = "r1i1p1f1",
-  
-  source = c("MPI-ESM1-2-LR", "CMCC-ESM2", "ACCESS-ESM1-5", "EC-Earth3-CC", "IPSL-CM6A-LR", "MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM"),
-   
-  # # This is how we specify the node that we want to use. The default node is NCI (Australia).
-  node_url = "https://esgf-node.llnl.gov/esg-search/search/?")
-
+  variant = "r1i1p1f1")
 
 head(results_query_intpp, n = 3)
 ```
@@ -349,8 +282,6 @@ in.
 results_query_intpp <- results_query_intpp %>%
   #Removing any datasets ending after 2100
   filter(year(datetime_end) <= 2100) %>% 
-  #Select only results with native grid
-  filter(grid_label == "gn") %>% 
   #Checking if one model has multiple files - Select only files for the first and last decade
   group_by(dataset_id) %>% 
   mutate(count = n(),
@@ -400,186 +331,18 @@ We will save these results to disk for future reference.
 write_csv(results_query_intpp, "../Outputs/results_query_intpp.csv")
 ```
 
-## Accessing and downloading subsets of CMIP6 data
-
-We will now switch to `Python` to make use of the `xmip` library that
-allow us to standardise variable names for CMIP6 data.
-
-### Switching to `Python`
-
-The `reticulate` package in `R` allow us to use `Python` within an `R`
-script. We will be using a `conda environment` which in simple terms is
-a directory that contains all the `Pyhton` libraries and the
-dependencies needed to run this script. The `README` file in this
-repository has instructions on how to create this environment.
+We can also merge both data frames into one before saving the results
+locally.
 
 ``` r
-#Activating the conda environment containing relevant Python libraries
-use_condaenv("CMIP6_data")
+results_query %>% 
+  bind_rows(results_query_intpp) %>% 
+  write_csv("../Outputs/results_merged.csv")
 ```
 
-### Loading `Python` libraries
+We have successfully searched the CMIP6 datasets available through ESGF
+and narrowed down our results using functions available in the
+`tidyverse` package.
 
-``` python
-#Easy access to data hosted online
-import requests
-
-#Loading and manipulating netcdf files
-from netCDF4 import Dataset
-import xarray as xr
-import numpy as np
-
-#Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon, promote_empty_dims, broadcast_lonlat
-
-#Dealing with file paths
-import os
-
-#Plotting
-import matplotlib
-matplotlib.use('Agg')
-```
-
-### Transforming CMIP6 search results into a `Python` variable
-
-In this step we can use either of the search results. In the example
-below, we will be working with the search results for the `intpp`
-variable.
-
-``` python
-# CMIP6_query = r.results_query
-CMIP6_query = r.results_query_intpp
-#Changing years to integers
-CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
-'decade_N_start': 'int32', 'decade_N_end': 'int32'})
-
-CMIP6_query.head(n = 2)
-```
-
-    ##                                              file_id  ...                                           out_path
-    ## 0  CMIP6.ScenarioMIP.CSIRO.ACCESS-ESM1-5.ssp245.r...  ...  /perm_storage/home/data/CMIP6_data/ACCESS-ESM1...
-    ## 1  CMIP6.ScenarioMIP.DKRZ.MPI-ESM1-2-HR.ssp245.r1...  ...  /perm_storage/home/data/CMIP6_data/MPI-ESM1-2-...
-    ## 
-    ## [2 rows x 33 columns]
-
-### Accessing and saving CMIP6 data
-
-We will now load the CMIP6 data into a temporary file in memory, so we
-can subset it, standardise its variables names and save a local copy. We
-will loop through each item in the search results.
-
-``` python
-def download_CMIP6(df):
-  #Getting key information to load CMIP6 data locally from query results
-  #URL address (include "#mode=bytes" at the end of the URL if not working)
-  url = df['file_url']
-  #Variable name
-  var_id = df['variable_id'][0]
-  #Start decades
-  dec_0 = int(df['decade_0_start'][0])
-  dec_N = int(df['decade_N_start'][0])
-  #File paths
-  out_folder = df['out_full_folder'][0]
-  #Ensuring folder exists
-  os.makedirs(out_folder, exist_ok = True)
-  #File name with full path
-  out_file = df['out_path'][0]
-  
-  ds = []
-  for ind in df.index:
-    #Loading data to memory in a temporary file
-    link = requests.get(url[ind]).content
-    remote = Dataset(var_id, memory = link)
-    #Loading as xarray dataset
-    sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
-    ds.append(sub)
-  ds = xr.concat(ds, dim = 'time')
-    
-  #Standardising CMIP6 data
-  ds = rename_cmip6(ds)
-  ds = promote_empty_dims(ds)
-  ds = broadcast_lonlat(ds)
-  ds = replace_x_y_nominal_lat_lon(ds)
-  
-  #Subsetting data - First and last decade and stitching them together
-  d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
-  dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
-  
-  #Combining first and last decade into one dataset
-  ds_sub = xr.concat([d0, dN], dim = 'time')
-  
-  #Saving subsetted dataset
-  ds_sub.to_netcdf(out_file)
-```
-
-``` python
-#Starting loop
-for mod in np.unique(CMIP6_query['source_id']):
-  mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
-  download_CMIP6(mod_id)
-```
-
-### Checking subsetted data
-
-We can load one of the datasets we saved in the previous step to check
-its contents.
-
-``` python
-#Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][0])
-#Checking contents
-ds
-```
-
-    ## <xarray.Dataset>
-    ## Dimensions:      (time: 240, bnds: 2, y: 300, x: 360, vertex: 4)
-    ## Coordinates:
-    ##   * time         (time) datetime64[ns] 2015-01-16T12:00:00 ... 2100-12-16T12:...
-    ##   * y            (y) float64 -77.88 -77.63 -77.38 -77.13 ... 88.87 89.31 89.75
-    ##   * x            (x) float64 0.5 1.5 2.5 3.5 4.5 ... 356.5 357.5 358.5 359.5
-    ##   * bnds         (bnds) int64 0 1
-    ##   * vertex       (vertex) int64 0 1 2 3
-    ## Data variables:
-    ##     time_bounds  (time, bnds) datetime64[ns] ...
-    ##     lat          (time, y, x) float64 ...
-    ##     lon          (time, y, x) float64 ...
-    ##     lat_bounds   (time, y, x, vertex) float64 ...
-    ##     lon_bounds   (time, y, x, vertex) float64 ...
-    ##     intpp        (time, y, x) float32 ...
-    ## Attributes: (12/47)
-    ##     Conventions:            CF-1.7 CMIP-6.2
-    ##     activity_id:            ScenarioMIP
-    ##     branch_method:          standard
-    ##     branch_time_in_child:   60265.0
-    ##     branch_time_in_parent:  60265.0
-    ##     creation_date:          2019-11-15T09:45:17Z
-    ##     ...                     ...
-    ##     variable_id:            intpp
-    ##     variant_label:          r1i1p1f1
-    ##     version:                v20191115
-    ##     cmor_version:           3.4.0
-    ##     tracking_id:            hdl:21.14100/5ab2f881-d384-4b73-b358-25c33a1d8eb7
-    ##     license:                CMIP6 model data produced by CSIRO is licensed un...
-
-### Plotting results
-
-Finally, we can calculate monthly means over the first decade of
-interest and plot these results.
-
-``` python
-#Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
-#Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][0]].mean('time').plot(levels = 9)
-#Show plot
-matplotlib.pyplot.show()
-#Close plot if needed
-# matplotlib.pyplot.close()
-```
-
-![](01_Accessing_CMIP6_data_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
-
-We have successfully search the CMIP6 database, narrowed down our
-results and downloaded a subset of the data we needed. In the next
-notebook, we will show how to calculate monthly means and saving the
-results as a `netcdf` file using `R` and `Python`.
+In [step 2](02_Downloading_CMIP6_data.md), we will download datasets
+using `Python` libraries.

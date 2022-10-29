@@ -1,5 +1,5 @@
 ---
-title: "Accessing CMIP6 ESM data"
+title: "Querying CMIP6 database"
 author: "Denisse Fierro Arcos"
 date: "2022-10-12"
 output: 
@@ -28,7 +28,6 @@ All other libraries allow us to manipulate and save CMIP6 data.
 ```{r libraries, results = "hide", warnings = F, message = F}
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
-library(reticulate)
 library(lubridate)
 ```
 
@@ -65,13 +64,7 @@ results_query <- cmip6_index(
   source = c("ACCESS-ESM1-5"),
   
   # Specifying variant, which refers to the model run 
-  variant = "r1i1p1f1",
-  
-  # Specifying time frame of interest
-  years = NULL,
-  
-  # Save to data dictionary
-  save = TRUE)
+  variant = "r1i1p1f1")
 
 #We will only show the first three results of our search.
 head(results_query, n = 3)
@@ -94,8 +87,10 @@ Now we will add the columns we need to automate process into the search results 
 results_query <- results_query %>%
   #Removing any datasets ending after 2100
   filter(year(datetime_end) <= 2100) %>% 
-  #Defining the first and last decade of each experiment
-  mutate(decade_0_start = year(datetime_start),
+  #Checking if one model has multiple files - Select only files for the first and last decade
+  group_by(dataset_id) %>% 
+  mutate(count = n(),
+         decade_0_start = year(datetime_start),
          decade_0_end = decade_0_start+9L,
          decade_N_start = year(datetime_end)-9L,
          decade_N_end = year(datetime_end),
@@ -107,7 +102,11 @@ results_query <- results_query %>%
          #Defining the correct file path for local copies
          out_full_folder = file.path(out_folder, source_id, experiment_id),
          #Defining full file path for subset data
-         out_path = file.path(out_full_folder, out_file_name))
+         out_path = file.path(out_full_folder, out_file_name),
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_start) >= decade_N_start ~ T,
+                          count <= 2 ~ T,
+                          T ~ F))
 
 head(results_query, n = 3)
 ```
@@ -126,19 +125,13 @@ We can also carry out a search using a variable name only as shown in the exampl
 results_query_intpp <- cmip6_index(variable = "intpp",
   
   # We are interested in monthly data only
-  # frequency = "mon",
+  frequency = "mon",
   
   # We will only consider scenario SSP245
   experiment = "ssp245",
   
   # Specifying variant, which refers to the model run 
-  variant = "r1i1p1f1",
-  
-  source = c("MPI-ESM1-2-LR", "CMCC-ESM2", "ACCESS-ESM1-5", "EC-Earth3-CC", "IPSL-CM6A-LR", "MPI-ESM1-2-HR", "NorESM2-LM", "NorESM2-MM"),
-   
-  # # This is how we specify the node that we want to use. The default node is NCI (Australia).
-  node_url = "https://esgf-node.llnl.gov/esg-search/search/?")
-
+  variant = "r1i1p1f1")
 
 head(results_query_intpp, n = 3)
 ```
@@ -148,8 +141,6 @@ We can further refine search results using the `filter` function from the `dplyr
 results_query_intpp <- results_query_intpp %>%
   #Removing any datasets ending after 2100
   filter(year(datetime_end) <= 2100) %>% 
-  #Select only results with native grid
-  filter(grid_label == "gn") %>% 
   #Checking if one model has multiple files - Select only files for the first and last decade
   group_by(dataset_id) %>% 
   mutate(count = n(),
@@ -184,128 +175,13 @@ We will save these results to disk for future reference.
 write_csv(results_query_intpp, "../Outputs/results_query_intpp.csv")
 ```
 
-
-## Accessing and downloading subsets of CMIP6 data
-We will now switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
-
-### Switching to `Python`
-The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using a `conda environment` which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment.
-
-```{r , results = "hide", warnings = F, message = F}
-#Activating the conda environment containing relevant Python libraries
-use_condaenv("CMIP6_data")
+We can also merge both data frames into one before saving the results locally.
+```{r}
+results_query %>% 
+  bind_rows(results_query_intpp) %>% 
+  write_csv("../Outputs/results_merged.csv")
 ```
 
-### Loading `Python` libraries
-```{python}
-#Easy access to data hosted online
-import requests
+We have successfully searched the CMIP6 datasets available through ESGF and narrowed down our results using functions available in the `tidyverse` package.
 
-#Loading and manipulating netcdf files
-from netCDF4 import Dataset
-import xarray as xr
-import numpy as np
-
-#Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon, promote_empty_dims, broadcast_lonlat
-
-#Dealing with file paths
-import os
-
-#Plotting
-import matplotlib
-matplotlib.use('Agg')
-```
-
-### Transforming CMIP6 search results into a `Python` variable
-In this step we can use either of the search results. In the example below, we will be working with the search results for the `intpp` variable.
-```{python}
-# CMIP6_query = r.results_query
-CMIP6_query = r.results_query_intpp
-#Changing years to integers
-CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
-'decade_N_start': 'int32', 'decade_N_end': 'int32'})
-
-CMIP6_query.head(n = 2)
-```
-
-### Accessing and saving CMIP6 data
-We will now load the CMIP6 data into a temporary file in memory, so we can subset it, standardise its variables names and save a local copy. We will loop through each item in the search results.
-```{python}
-def download_CMIP6(df):
-  #Getting key information to load CMIP6 data locally from query results
-  #URL address (include "#mode=bytes" at the end of the URL if not working)
-  url = df['file_url']
-  #Variable name
-  var_id = df['variable_id'][0]
-  #Start decades
-  dec_0 = int(df['decade_0_start'][0])
-  dec_N = int(df['decade_N_start'][0])
-  #File paths
-  out_folder = df['out_full_folder'][0]
-  #Ensuring folder exists
-  os.makedirs(out_folder, exist_ok = True)
-  #File name with full path
-  out_file = df['out_path'][0]
-  
-  ds = []
-  for ind in df.index:
-    #Loading data to memory in a temporary file
-    link = requests.get(url[ind]).content
-    remote = Dataset(var_id, memory = link)
-    #Loading as xarray dataset
-    sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
-    ds.append(sub)
-  ds = xr.concat(ds, dim = 'time')
-    
-  #Standardising CMIP6 data
-  ds = rename_cmip6(ds)
-  ds = promote_empty_dims(ds)
-  ds = broadcast_lonlat(ds)
-  ds = replace_x_y_nominal_lat_lon(ds)
-  
-  #Subsetting data - First and last decade and stitching them together
-  d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
-  dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
-  
-  #Combining first and last decade into one dataset
-  ds_sub = xr.concat([d0, dN], dim = 'time')
-  
-  #Saving subsetted dataset
-  ds_sub.to_netcdf(out_file)
-
-```
-
-```{python, eval = F}
-#Starting loop
-for mod in np.unique(CMIP6_query['source_id']):
-  mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
-  download_CMIP6(mod_id)
-
-```
-
-### Checking subsetted data
-We can load one of the datasets we saved in the previous step to check its contents.
-
-```{python}
-#Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][0])
-#Checking contents
-ds
-```
-
-### Plotting results
-Finally, we can calculate monthly means over the first decade of interest and plot these results.
-```{python}
-#Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
-#Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][0]].mean('time').plot(levels = 9)
-#Show plot
-matplotlib.pyplot.show()
-#Close plot if needed
-# matplotlib.pyplot.close()
-```
-
-We have successfully search the CMIP6 database, narrowed down our results and downloaded a subset of the data we needed. In the next notebook, we will show how to calculate monthly means and saving the results as a `netcdf` file using `R` and `Python`.
-
+In [step 2](02_Downloading_CMIP6_data.md), we will download datasets using `Python` libraries.
