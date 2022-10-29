@@ -29,7 +29,12 @@ Recall from the previous step, some models had multiple files available for the 
 
 ```{r}
 #Loading ACCESS-ESM 1.5 query
-results_query <- read_csv("../Outputs/results_merged.csv")
+results_query <- read_csv("../Outputs/results_merged.csv") %>% 
+  #We will remove any duplicated entries - based on the output file name
+  mutate(dup = duplicated(out_file_name)) %>%
+  filter(dup == F)
+
+head(results_query, n = 2)
 ```
 
 
