@@ -1,0 +1,129 @@
+---
+title: "Plotting CMIP6 ESM data in R"
+author: "Denisse Fierro Arcos"
+date: "2022-10-29"
+output: 
+  github_document:
+    toc: true
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In this notebook, we will use the `metR` and `ggplot2` libraries in `R` to load the monthly means from the CMIP6 data.
+
+
+## Loading libraries
+
+```{r libraries, results = "hide", warnings = F, message = F}
+library(metR)
+library(tidyverse)
+```
+
+## Loading search results from [first notebook](01_Querying_CMIP6_database.md)
+We will use the search results from the first notebook to find the files we need. We will only focus on the `intpp` variable and the `ssp245` scenario.
+
+```{r}
+#Loading search results
+results_query <- read_csv("../Outputs/results_merged.csv") %>%
+  filter(variable_id == "intpp" & experiment_id == "ssp245") %>% 
+  #We will remove any duplicated entries - based on the output file name
+  mutate(dup = duplicated(out_file_name)) %>%
+  filter(dup == F) %>% 
+  #Add name of output files of interest
+  mutate(mean_dec0 = list.files(out_full_folder, pattern = paste0("*.intpp.*Mean.", decade_0_start), full.names = T),
+         mean_decN = list.files(out_full_folder, pattern = paste0("*.intpp.*Mean.", decade_N_start), full.names = T))
+
+head(results_query, n = 2)
+```
+
+
+
+## Loading data
+
+```{r}
+var_id <- results_query$variable_id[1]
+file_dec0 <- results_query$mean_dec0[1]
+file_decN <- results_query$mean_decN[1]
+model <- results_query$source_id[1]
+months_ind <- c(1, 9)
+
+
+#Function creating one raster per month of interest
+raster_month <- function(df){
+  df %>% 
+    dplyr::select(-month) %>% 
+    #Changing data frame to sf object
+    st_as_sf(coords = c("x", "y"), crs = 4326) %>% 
+    #Creating raster
+    st_rasterize() %>% 
+    #Changing attributes to dimensions
+    st_redimension() %>% 
+    #Renaming dimension to decades. Value 2 represents difference between first (0) and last (1) decade
+    st_set_dimensions("new_dim", values = c(0,1,2), names = "decade")
+  }
+
+#Loading raster with means from first decade
+raster_stack <- function(file_dec0, file_decN, var_id, months_ind){
+  ReadNetCDF(file_dec0, vars = var_id) %>% 
+  #Extracting months of interest
+  filter(month %in% months_ind) %>% 
+  #Adding a column indicating to which decade value relates to
+  mutate(decade = "Decade_0") %>% 
+  #Loading raster with means from last decade
+  bind_rows(ReadNetCDF(file_decN, vars = var_id) %>% 
+              #Extracting months of interest
+              filter(month %in% months_ind) %>% 
+               #Adding a column indicating to which decade value relates to
+              mutate(decade = "Decade_N")) %>%
+  #Calculating difference between first and last decade
+  pivot_wider(names_from = decade, values_from = var_id) %>%
+  mutate(Difference = Decade_0 - Decade_N,
+         x = case_when(x >180 ~ x-360,
+                       T~x)) %>%
+  group_by(month)
+  }
+
+test <- results_query %>% 
+  dplyr::select(variable_id, mean_dec0, mean_decN, source_id) %>% 
+  as_tibble() %>% 
+  mutate(df = NA, raster = NA, figure = NA)
+
+for(i in 1:nrow(test)){
+  test$df[i] <- list(raster_stack(test$mean_dec0[i], test$mean_decN[i], test$variable_id[i], months_ind))
+  test$raster[i] <- list(group_split(test$df[i][[1]]) %>% purrr::map(raster_month))
+  # n <- month.abb[group_keys(test$df[1][[1]]) %>% pull()]
+  }
+           
+# library(patchwork)
+# 
+# #Applying rastering function
+# r_month <- test$df[1] %>% 
+#   group_split() %>% 
+#   purrr::map(raster_month)
+# 
+# wgs84_map <- ggplot()+
+#   geom_stars(data = test$raster[10][[1]])+
+#   facet_grid(~decade)+
+#   theme_bw()
+# 
+# wgs84_map2 <- ggplot()+
+#   geom_stars(data = test$raster[3][[1]])+
+#   facet_grid(~decade)+
+#   theme_bw()
+# 
+# test0 <- st_transform(r_month[[1]] %>% filter(y <= 84), crs = st_crs(3395))
+# 
+# mercator_map <- ggplot()+
+#   geom_stars(data = test0)+
+#   facet_grid(~decade)+
+#   theme_bw()
+# 
+# wgs84_map/wgs84_map2
+
+```
+
