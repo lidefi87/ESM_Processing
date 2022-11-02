@@ -46,12 +46,7 @@ head(results_query, n = 2)
 ## Loading data
 
 ```{r}
-var_id <- results_query$variable_id[1]
-file_dec0 <- results_query$mean_dec0[1]
-file_decN <- results_query$mean_decN[1]
-model <- results_query$source_id[1]
 months_ind <- c(1, 9)
-
 
 #Function creating one raster per month of interest
 raster_month <- function(df){
@@ -93,37 +88,36 @@ test <- results_query %>%
   as_tibble() %>% 
   mutate(df = NA, raster = NA, figure = NA)
 
+#Facet labels
+label_names <- c(`0` = "First decade",
+                   `1` = "Last decade",
+                   `2` = "Difference")
+
 for(i in 1:nrow(test)){
-  test$df[i] <- list(raster_stack(test$mean_dec0[i], test$mean_decN[i], test$variable_id[i], months_ind))
-  test$raster[i] <- list(group_split(test$df[i][[1]]) %>% purrr::map(raster_month))
-  # n <- month.abb[group_keys(test$df[1][[1]]) %>% pull()]
-  }
-           
-# library(patchwork)
-# 
-# #Applying rastering function
-# r_month <- test$df[1] %>% 
-#   group_split() %>% 
-#   purrr::map(raster_month)
-# 
-# wgs84_map <- ggplot()+
-#   geom_stars(data = test$raster[10][[1]])+
-#   facet_grid(~decade)+
-#   theme_bw()
-# 
-# wgs84_map2 <- ggplot()+
-#   geom_stars(data = test$raster[3][[1]])+
-#   facet_grid(~decade)+
-#   theme_bw()
-# 
-# test0 <- st_transform(r_month[[1]] %>% filter(y <= 84), crs = st_crs(3395))
-# 
-# mercator_map <- ggplot()+
-#   geom_stars(data = test0)+
-#   facet_grid(~decade)+
-#   theme_bw()
-# 
-# wgs84_map/wgs84_map2
+  # test$df[i] <- list(raster_stack(test$mean_dec0[i], test$mean_decN[i], test$variable_id[i], months_ind))
+  # test$raster[i] <- list(group_split(test$df[i][[1]]) %>% purrr::map(raster_month) %>% setNames(month.abb[months_ind]))
+  figs <- list(jan_fig = ggplot()+
+                 geom_stars(data = test$raster[i][[1]]$Jan)+
+                 facet_grid(~decade, labeller = as_labeller(label_names))+
+                 scale_fill_viridis_c(guide = guide_colorbar(title = test$variable_id[i],
+                                             title.position = "top",
+                                             title.hjust = 0.5))+
+                 theme_bw()+
+                 theme(legend.position = "bottom", 
+                       legend.key.width = unit(3, "cm"),
+                       axis.title = element_blank()),
+    sep_fig = ggplot()+
+      geom_stars(data = test$raster[i][[1]]$Sep)+
+      facet_grid(~decade, labeller = as_labeller(label_names))+
+                 scale_fill_viridis_c(guide = guide_colorbar(title = test$variable_id[i],
+                                             title.position = "top",
+                                             title.hjust = 0.5))+
+                 theme_bw()+
+                 theme(legend.position = "bottom", 
+                       legend.key.width = unit(3, "cm"),
+                       axis.title = element_blank()))
+  test$figure[i] <- list(figs)
+}
 
 ```
 
