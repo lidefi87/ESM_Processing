@@ -20,10 +20,11 @@ In this notebook, we will use the `ncdf4` and `lattices` libraries in `R` to plo
 ## Loading libraries
 
 ```{r libraries, results = "hide", warnings = F, message = F}
-library(ncdf4)
-library(lattice)
-library(latticeExtra)
+# library(ncdf4)
+# library(lattice)
+# library(latticeExtra)
 library(tidyverse)
+library(reticulate)
 ```
 
 ## Loading search results from [first notebook](01_Querying_CMIP6_database.md)
@@ -46,19 +47,45 @@ head(results_query, n = 2)
 ## Loading data
 We will create a new data frame from the search results above to store our rasters and plots. We will also add a few empty columns to store our results.
 
-```{r}
-monthly_dec_means <- results_query %>% 
-  dplyr::select(variable_id, mean_dec0, mean_decN, source_id) %>% 
-  as_tibble() %>% 
-  #The nc column will contain the rasters for each month of interest per decade (dec0 and decN), as well as the difference
-  mutate(#Plots will be saved in these columns
-         fig_dec0 = NA, fig_decN = NA, fig_diff = NA)
+
+```{r libraries, results = "hide", warnings = F, message = F}
+use_condaenv("CMIP6_data")
+```
+## Loading relevant Python libraries
+```{python}
+import xarray as xr
+import os
+from glob import glob
+import calendar
+import pandas as pd
+import matplotlib.pyplot as plt
+```
+
+
+```{python}
+results_query = r.results_query[['variable_id', 'mean_dec0', 'mean_decN', 'source_id']]
+months_interest = ['January', 'September']
+  
+  # as_tibble() %>% 
+  # #The nc column will contain the rasters for each month of interest per decade (dec0 and decN), as well as the difference
+  # mutate(dec0_raster = NA, decN_raster = NA, coordinates = NA)
+         # , decN_Sep = NA, 
+         # diff_Jan = NA, diff_Sep = NA, grid = NA)
+         #Plots will be saved in these columns
+         # fig_dec0 = NA, fig_decN = NA, fig_diff = NA)
 ```
 
 We will only be plotting the means for two months, for which we will include its index under the `months_ind` variable. We will be plotting January and September.
 
-```{r}
-months_ind <- c(1, 9)
+```{python}
+#Loading data
+test = xr.open_dataset(results_query.mean_dec0[0])
+#Changing months values from digits to names
+test['month'] = [calendar.month_name[m] for m in test.month.values]
+#Selecting months of interest
+test_sub = test.intpp.loc[months_interest]
+test.intpp.sel(month = 'January').plot()
+plt.show()
 ```
 
 We will define a few functions to help us speed up the process of loading and plotting data.
@@ -78,14 +105,12 @@ loading_nc_means <- function(file_path, variable, months){
   #Getting indexes from reordered longitude to reorder data
   ind <- c(which(lon>180), which(lon<=180))
   #Reordering data and extracting months of interest
-  var <- var[ind,,months]
-  #Putting all outputs in one list
-  out <- list(raster = var,
-              lon = lon_180,
-              lat = lat)
+  var <- var[,ind,months]
   nc_close(nc)
-  return(out)
-}
+  return(list(raster = var,
+              lon = lon_180,
+              lat = lat))
+  }
 ```
 
 
@@ -95,60 +120,120 @@ We will now go through each row of our search results, load the correct `netcdf`
 ```{r}
 #Changing month indexes to month abbreviations.
 #Looping through each row in our results
+month_Jan <- list()
+month_Sep <- list()
 for(i in 1:nrow(monthly_dec_means)){
-  #Loading rasters with data for both decades
-  nc_dec0 <- loading_nc_means(monthly_dec_means$mean_dec0[i], 
+  dec0 <- loading_nc_means(monthly_dec_means$mean_dec0[i], 
                               monthly_dec_means$variable_id[i],
                               months_ind)
-  nc_decN <- loading_nc_means(monthly_dec_means$mean_decN[i],
-                              monthly_dec_means$variable_id[i], 
+  decN <- loading_nc_means(monthly_dec_means$mean_decN[i],
+                              monthly_dec_means$variable_id[i],
                               months_ind)
+  diff <- dec0$raster-decN$raster
+  name <- monthly_dec_means$source_id[i]
+  month_Jan[[name]] <- list(dec0 = dec0$raster[,,1],
+                          decN = decN$raster[,,1],
+                          diff = diff[,,1],
+                          lon = dec0$lon,
+                          lat = dec0$lat)
+  month_Sep[[name]] <- list(dec0 = dec0$raster[,,2],
+                          decN = decN$raster[,,2],
+                          diff = diff[,,2],
+                          lon = dec0$lon,
+                          lat = dec0$lat)
+
+  #Loading rasters with data for both decades
+  # dec_0[[i]] <- list(name = monthly_dec_means$source_id[i],
+  #                    data = list(loading_nc_means(monthly_dec_means$mean_dec0[i], 
+  #                             monthly_dec_means$variable_id[i],
+  #                             months_ind)))
+  # dec_N[[i]] <- list(name = monthly_dec_means$source_id[i],
+  #                    data = loading_nc_means(monthly_dec_means$mean_decN[i],
+  #                             monthly_dec_means$variable_id[i],
+  #                             months_ind))
+  # diff[[i]] <- dec_0[[i]]$data$raster-dec_0[[i]]$data$raster
+  # 
+  # <- loading_nc_means(monthly_dec_means$mean_dec0[i], 
+  #                             monthly_dec_means$variable_id[i],
+  #                             months_ind)
+  # dec_N <- loading_nc_means(monthly_dec_means$mean_decN[i],
+  #                             monthly_dec_means$variable_id[i],
+  #                             months_ind)
+  # monthly_dec_means$dec0_raster[i] <- list(raster = dec_0$raster)
+  # monthly_dec_means$decN_raster[i] <- list(raster =dec_N$raster)
+  # monthly_dec_means$coordinates[i] <- list(lon = dec_0$lon, 
+  #                                          lat = dec_0$lat)
+  # monthly_dec_means$coordinates[i] <- list(loading_nc_means(monthly_dec_means$mean_decN[i],
+  #                             monthly_dec_means$variable_id[i],
+  #                             months_ind, "coordinates"))
+}
+
+  
   #Calculate differences per month/decade
-  diff <- nc_dec0$raster-nc_decN$raster
-  #Extract coordinates for plotting
-  lon <- nc_dec0$lon
-  lat <- as.vector(nc_dec0$lat)
-  #Create grid for plotting
-  grid <- expand.grid(lon = lon, lat = lat)
-  #Create color bar with 9 groups
+  # diff <- nc_dec0$raster-nc_decN$raster
+  # #Extract coordinates for plotting
+  # lon <- nc_dec0$lon
+  # lat <- as.vector(nc_dec0$lat)
+  # #Create grid for plotting
+  # grid <- expand.grid(lon = lon, lat = lat)
+  # monthly_dec_means$dec0_Jan[i] = nc_dec0$raster[,,"jan"]
+  # monthly_dec_means$dec0_Sep[i] = nc_dec0$raster[,,"sep"]
+
+  
+#Create color bar with 9 groups
   cutpts <- seq(0, max(max(nc_dec0$raster, na.rm = T), max(nc_decN$raster, na.rm = T)), length = 9)
   cutpts_diff <- c(seq(min(diff, na.rm = T), -0.1e-8, length = 6),
                    seq(0.1e-8, max(diff, na.rm = T), length = 5))
   #Create plots
   figs_dec0 <- list();  figs_decN <- list(); figs_diff <- list()
   for(m in 1:length(months_ind)){
-    title <- paste0(monthly_dec_means$source_id[i], " - ", month.abb[m])
-    figs_dec0[[m]] <- levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = monthly_dec_means$source_id[i],
-                                at = cutpts, cuts = 9, col.regions = RColorBrewer::brewer.pal(9, "PuBuGn"))
-    figs_decN[[m]] <- levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = monthly_dec_means$source_id[i],
-                                at = cutpts, cuts = 9, col.regions = RColorBrewer::brewer.pal(9, "PuBuGn"))
-    figs_diff[[m]] <- levelplot(diff[,,m] ~ lon*lat, data = grid,  pretty = T, main = monthly_dec_means$source_id[i],
-                                at = cutpts_diff, cuts = 11, col.regions = RColorBrewer::brewer.pal(11, "RdYlBu"))
+    title <- paste0(monthly_dec_means$source_id[i], " - Decadal mean for", month.name[m] )
+    #Changing NA values to -9999 to color land in plots
+    nc_dec0$raster[,,m][is.na(nc_dec0$raster[,,m])] <- -9999
+    nc_decN$raster[,,m][is.na(nc_decN$raster[,,m])] <- -9999
+    diff[,,m][is.na(diff[,,m])] <- -9999
+    #Plotting results
+    figs_dec0[[m]] <- levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = title, at = c(-Inf, cutpts), 
+                                cuts = 10, col.regions = c("#dcd0c4", RColorBrewer::brewer.pal(9, "PuBuGn")),
+                                contour = T, col = "#a6a6a6")
+    figs_decN[[m]] <- levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = title, at = c(-Inf, cutpts), 
+                                cuts = 10, col.regions = c("#dcd0c4", RColorBrewer::brewer.pal(9, "PuBuGn")),
+                                contour = T, col = "#a6a6a6")
+    figs_diff[[m]] <- levelplot(diff[,,m] ~ lon*lat, data = grid,  pretty = T, main = title, at = c(-Inf, cutpts_diff), 
+                                cuts = 12, col.regions = c("#dcd0c4",RColorBrewer::brewer.pal(11, "RdYlBu")),
+                                contour = T, col = "#a6a6a6")
+  #Update names of figures to month abbreviation
+  names(figs_dec0) <- month.abb[months_ind]
+  #names(figs_decN) <- month.abb[months_ind]
+  #names(figs_diff) <- month.abb[months_ind]
+  #Saving figures in tibble
+  monthly_dec_means$fig_dec0[i] <- list(figs_dec0)
+  monthly_dec_means$fig_decN[i] <- list(figs_decN)
+  monthly_dec_means$fig_diff[i] <- list(figs_diff)  
   }
   
   
-  
-  monthly_dec_means$fig_dec0[i] <- list(dec0 = levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, 
-                                                         at = cutpts, cuts = 9, pretty = T,
-                                                         col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
-                                        decN = levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, 
-                                                         at = cutpts, cuts = 9, 
-                                                         col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
-                                        diff = levelplot(diff[,,m] ~ lon*lat, data = grid, 
-                                                         at = cutpts, cuts = 9, 
-                                                         col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")))
-  b
-  x <- nc_dec0$raster-nc_decN$raster
-  monthly_dec_means$nc_dec0[1][[1]]$raster[,,1]
-  
-  monthly_dec_means$nc_dec0[1][[1]]$lat
-  #Save data frame with combined datasets
-  monthly_dec_means$nc[i]
-    df[i] <- list(raster_stack(test$mean_dec0[i], 
-                                  test$mean_decN[i], 
-                                  test$variable_id[i], 
-                                  months_ind))
-  
+  # monthly_dec_means$fig_dec0[i] <- list(dec0 = levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, 
+  #                                                        at = cutpts, cuts = 9, pretty = T,
+  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
+  #                                       decN = levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, 
+  #                                                        at = cutpts, cuts = 9, 
+  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
+  #                                       diff = levelplot(diff[,,m] ~ lon*lat, data = grid, 
+  #                                                        at = cutpts, cuts = 9, 
+  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")))
+  # b
+  # x <- nc_dec0$raster-nc_decN$raster
+  # monthly_dec_means$nc_dec0[1][[1]]$raster[,,1]
+  # 
+  # monthly_dec_means$nc_dec0[1][[1]]$lat
+  # #Save data frame with combined datasets
+  # monthly_dec_means$nc[i]
+  #   df[i] <- list(raster_stack(test$mean_dec0[i], 
+  #                                 test$mean_decN[i], 
+  #                                 test$variable_id[i], 
+  #                                 months_ind))
+  # 
   
  
 #Calculate differences
