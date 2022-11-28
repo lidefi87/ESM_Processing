@@ -337,6 +337,8 @@ locally.
 ``` r
 results_query %>% 
   bind_rows(results_query_intpp) %>% 
+  #Ensure any duplicate rows are removed before saving results
+  distinct() %>% 
   write_csv("../Outputs/results_merged.csv")
 ```
 

@@ -179,6 +179,8 @@ We can also merge both data frames into one before saving the results locally.
 ```{r}
 results_query %>% 
   bind_rows(results_query_intpp) %>% 
+  #Ensure any duplicate rows are removed before saving results
+  distinct() %>% 
   write_csv("../Outputs/results_merged.csv")
 ```
 

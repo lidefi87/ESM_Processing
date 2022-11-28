@@ -51,7 +51,8 @@ matplotlib.use('Agg')
 ### Transforming CMIP6 search results into a `Python` variable
 In this step we can use either of the search results. In the example below, we will be working with the merged search results.
 ```{python}
-CMIP6_query = pd.read_csv("../Outputs/results_merged.csv")
+#Load data and ensure there are no duplicates
+CMIP6_query = pd.read_csv("../Outputs/results_merged.csv").drop_duplicates()
 
 CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
 'decade_N_start': 'int32', 'decade_N_end': 'int32'})
@@ -60,7 +61,8 @@ CMIP6_query.head(n = 2)
 ```
 
 ### Accessing and saving CMIP6 data
-We will now load the CMIP6 data into a temporary file in memory, so we can subset it, standardise its variables names and save a local copy. We will loop through each item in the search results.
+We will define a new function that will access the CMIP6 data, load into memory, extract years of interest and standardise all variable names before saving a copy locally.
+
 ```{python}
 def download_CMIP6(df):
   #Getting key information to load CMIP6 data locally from query results
@@ -106,11 +108,16 @@ def download_CMIP6(df):
 
 ```
 
+We will loop through each item in the search results.
 ```{python, eval = F}
-#Starting loop
+#Starting loop through each model
 for mod in np.unique(CMIP6_query['source_id']):
+  print(mod)
   mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
-  download_CMIP6(mod_id)
+  #Group by variable name, experiment ID and grid type before starting data download
+  for names, sub in mod_id.groupby(['experiment_id', 'grid_label', 'variable_id']):
+    print(sub[['experiment_id', 'grid_label', 'variable_id']])
+    download_CMIP6(sub.reset_index())
 
 ```
 
@@ -119,7 +126,7 @@ We can load one of the datasets we saved in the previous step to check its conte
 
 ```{python}
 #Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][0])
+ds = xr.open_dataset(CMIP6_query['out_path'][52])
 #Checking contents
 ds
 ```
@@ -128,9 +135,9 @@ ds
 Finally, we can calculate monthly means over the first decade of interest and plot these results.
 ```{python}
 #Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][52]))
 #Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][0]].mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][52]].mean('time').plot(levels = 9)
 #Show plot
 matplotlib.pyplot.show()
 #Close plot if needed

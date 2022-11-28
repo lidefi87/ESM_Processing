@@ -35,7 +35,9 @@ results_query <- read_csv("../Outputs/results_merged.csv") %>%
   distinct(out_file_name, .keep_all = T) %>% 
   mutate(mean_dec0 = NA,
          mean_decN = NA)
+```
 
+```{r}
 for(i in 1:nrow(results_query)){
   results_query$mean_dec0[i] = list.files(results_query$out_full_folder[i],
                                           pattern = paste0("*.intpp.*Mean.", results_query$decade_0_start[i]), 
@@ -98,9 +100,9 @@ data = {}
 for i in range(len(results_query)):
   #Loading decadal means and ensuring only positive values are kept
   dec0 = xr.open_dataset(results_query.mean_dec0[i])
-  dec0 = dec0.where(dec0 > 0)
+  dec0 = dec0.where(dec0 >= 0)
   decN = xr.open_dataset(results_query.mean_decN[i])
-  decN = decN.where(decN > 0)
+  decN = decN.where(decN >= 0)
   #Calculating differences between decades
   diff = dec0-decN
   #Stacking everything together - Decade dimension added to identify data easily
@@ -202,45 +204,48 @@ for i, coord in enumerate(counter):
     p1 = da.plot.pcolormesh(ax = ax[i], cmap = cm.cm.speed,
                    add_colorbar = False)
   #Last decade
-  elif coord[0] == 'decN':
-    da_N = data[coord[1]].sel(month = month_plot, decade = coord[0])
-    p1 = da_N.plot.pcolormesh(ax = ax[i], cmap = cm.cm.speed,
-                 add_colorbar = False)
-  #Differences
-  else:
-    #Remove zeroes
-    da_d = data[coord[1]].sel(month = month_plot, decade = coord[0])
-    #Plot data
-    p2 = da_d.plot(ax = ax[i], cmap = mymap, norm = divnorm,
-    add_colorbar = False)
-  
-  #Set title for each map
-  if i < 3 and coord[0] == 'decN':
-    ax[i].set_title(f'{decadeName[coord[0]]} \n {coord[1]}', y = 1.01)
-  elif i < 3:
-    ax[i].set_title(f'{decadeName[coord[0]]} \n', y = 1.01)
-  elif i > 3 and coord[0] == 'decN':
-    ax[i].set_title(f'{coord[1]}', y = 1.01)
-  else:
-    ax[i].set_title('')
+  # elif coord[0] == 'decN':
+  #   da_N = data[coord[1]].sel(month = month_plot, decade = coord[0])
+  #   p1 = da_N.plot.pcolormesh(ax = ax[i], cmap = cm.cm.speed,
+  #                add_colorbar = False)
+  # #Differences
+  # else:
+  #   #Remove zeroes
+  #   da_d = data[coord[1]].sel(month = month_plot, decade = coord[0])
+  #   #Plot data
+  #   p2 = da_d.plot(ax = ax[i], cmap = mymap, norm = divnorm,
+  #   add_colorbar = False)
+  # 
+  # #Set title for each map
+  # if i < 3 and coord[0] == 'decN':
+  #   ax[i].set_title(f'{decadeName[coord[0]]} \n {coord[1]}', y = 1.01)
+  # elif i < 3:
+  #   ax[i].set_title(f'{decadeName[coord[0]]} \n', y = 1.01)
+  # elif i > 3 and coord[0] == 'decN':
+  #   ax[i].set_title(f'{coord[1]}', y = 1.01)
+  # else:
+  #   ax[i].set_title('')
         
   #Add land and coastlines
   ax[i].add_feature(land_50m)
   ax[i].coastlines(resolution = '50m')
     
-ax_col = fig.add_subplot(gs[-1, 0:2])
-cb = plt.colorbar(p1, cax = ax_col, orientation = 'horizontal', 
-                  shrink = 0.5,
-                  label = 'Primary Organic Carbon Production (mol m-2 s-1)')
-
-ax_dif = fig.add_subplot(gs[-1, -1])
-cb_dif = plt.colorbar(p2, cax = ax_dif, orientation = 'horizontal', 
-                  extend = 'both', shrink = 0.5,
-                  label = 'Difference (mol m-2 s-1)')
-
-plt.savefig('../Figures/test.png', dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
+# ax_col = fig.add_subplot(gs[-1, 0:2])
+# cb = plt.colorbar(p1, cax = ax_col, orientation = 'horizontal', 
+#                   shrink = 0.5,
+#                   label = 'Primary Organic Carbon Production (mol m-2 s-1)')
+# 
+# ax_dif = fig.add_subplot(gs[-1, -1])
+# cb_dif = plt.colorbar(p2, cax = ax_dif, orientation = 'horizontal', 
+#                   extend = 'both', shrink = 0.5,
+#                   label = 'Difference (mol m-2 s-1)')
+# 
+# plt.savefig('../Figures/test.png', dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
   #os.path.join(folder_out, fn), dpi = 300, 
    #         bbox_inches = 'tight', pad_inches = 0.05)
+plt.show()
+
+
 ```
 
 

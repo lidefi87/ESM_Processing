@@ -70,7 +70,8 @@ In this step we can use either of the search results. In the example
 below, we will be working with the merged search results.
 
 ``` python
-CMIP6_query = pd.read_csv("../Outputs/results_merged.csv")
+#Load data and ensure there are no duplicates
+CMIP6_query = pd.read_csv("../Outputs/results_merged.csv").drop_duplicates()
 
 CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
 'decade_N_start': 'int32', 'decade_N_end': 'int32'})
@@ -86,9 +87,9 @@ CMIP6_query.head(n = 2)
 
 ### Accessing and saving CMIP6 data
 
-We will now load the CMIP6 data into a temporary file in memory, so we
-can subset it, standardise its variables names and save a local copy. We
-will loop through each item in the search results.
+We will define a new function that will access the CMIP6 data, load into
+memory, extract years of interest and standardise all variable names
+before saving a copy locally.
 
 ``` python
 def download_CMIP6(df):
@@ -134,11 +135,17 @@ def download_CMIP6(df):
   ds_sub.to_netcdf(out_file)
 ```
 
+We will loop through each item in the search results.
+
 ``` python
-#Starting loop
+#Starting loop through each model
 for mod in np.unique(CMIP6_query['source_id']):
+  print(mod)
   mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
-  download_CMIP6(mod_id)
+  #Group by variable name, experiment ID and grid type before starting data download
+  for names, sub in mod_id.groupby(['experiment_id', 'grid_label', 'variable_id']):
+    print(sub[['experiment_id', 'grid_label', 'variable_id']])
+    download_CMIP6(sub.reset_index())
 ```
 
 ### Checking subsetted data
@@ -148,40 +155,39 @@ its contents.
 
 ``` python
 #Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][0])
+ds = xr.open_dataset(CMIP6_query['out_path'][52])
 #Checking contents
 ds
 ```
 
     ## <xarray.Dataset>
-    ## Dimensions:      (time: 240, bnds: 2, y: 300, x: 360, vertex: 4)
+    ## Dimensions:      (y: 180, x: 360, time: 192, bnds: 2)
     ## Coordinates:
-    ##   * time         (time) datetime64[ns] 1850-01-16T12:00:00 ... 2014-12-16T12:...
-    ##   * y            (y) float64 -77.88 -77.63 -77.38 -77.13 ... 88.87 89.31 89.75
+    ##   * y            (y) float64 -89.5 -88.5 -87.5 -86.5 ... 86.5 87.5 88.5 89.5
     ##   * x            (x) float64 0.5 1.5 2.5 3.5 4.5 ... 356.5 357.5 358.5 359.5
+    ##   * time         (time) object 2015-01-16 12:00:00 ... 2100-12-16 12:00:00
     ##   * bnds         (bnds) int64 0 1
-    ##   * vertex       (vertex) int64 0 1 2 3
+    ##     lon          (x, y) float64 ...
+    ##     lat          (x, y) float64 ...
     ## Data variables:
-    ##     time_bounds  (time, bnds) datetime64[ns] ...
-    ##     lat          (time, y, x) float64 ...
-    ##     lon          (time, y, x) float64 ...
-    ##     lat_bounds   (time, y, x, vertex) float64 ...
-    ##     lon_bounds   (time, y, x, vertex) float64 ...
     ##     intpp        (time, y, x) float32 ...
-    ## Attributes: (12/47)
-    ##     Conventions:            CF-1.7 CMIP-6.2
-    ##     activity_id:            CMIP
+    ##     lat_bounds   (time, y, bnds) float64 ...
+    ##     lon_bounds   (time, x, bnds) float64 ...
+    ##     time_bounds  (time, bnds) object ...
+    ## Attributes: (12/46)
+    ##     title:                  NOAA GFDL GFDL-CM4 model output prepared for CMIP...
+    ##     history:                File was processed by fremetar (GFDL analog of CM...
+    ##     external_variables:     areacello
+    ##     table_id:               Omon
+    ##     activity_id:            ScenarioMIP
     ##     branch_method:          standard
-    ##     branch_time_in_child:   0.0
-    ##     branch_time_in_parent:  21915.0
-    ##     creation_date:          2019-11-15T16:14:52Z
     ##     ...                     ...
     ##     variable_id:            intpp
+    ##     variant_info:           N/A
+    ##     references:             see further_info_url attribute
     ##     variant_label:          r1i1p1f1
-    ##     version:                v20191115
-    ##     cmor_version:           3.4.0
-    ##     tracking_id:            hdl:21.14100/44046366-ac50-4be5-bf42-e1be7c65e37e
-    ##     license:                CMIP6 model data produced by CSIRO is licensed un...
+    ##     branch_time_in_parent:  60225.0
+    ##     parent_time_units:      days since 1850-1-1
 
 ### Plotting results
 
@@ -190,9 +196,9 @@ interest and plot these results.
 
 ``` python
 #Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][0]))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][52]))
 #Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][0]].mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][52]].mean('time').plot(levels = 9)
 #Show plot
 matplotlib.pyplot.show()
 #Close plot if needed
