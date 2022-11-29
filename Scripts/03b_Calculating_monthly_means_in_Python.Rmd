@@ -75,6 +75,7 @@ def month_mean_CMIP6(df):
 
 ```
 
+Applying function above for each file saved locally.
 ```{python eval = F}
 #Starting loop to calculate and save monthly means
 for i in CMIP6_query.index:
@@ -84,7 +85,7 @@ for i in CMIP6_query.index:
 ```
 
 ## Checking results
-We will load randomly selected file and plot all months to check results.
+We will load randomly select a file from our disk, and plot all months to check monthly means.
 
 ```{python}
 #Selecting one file at random

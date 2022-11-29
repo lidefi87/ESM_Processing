@@ -97,6 +97,8 @@ def month_mean_CMIP6(df):
   dsN.to_netcdf(out_decN)
 ```
 
+Applying function above for each file saved locally.
+
 ``` python
 #Starting loop to calculate and save monthly means
 for i in CMIP6_query.index:
@@ -106,8 +108,8 @@ for i in CMIP6_query.index:
 
 ## Checking results
 
-We will load randomly selected file and plot all months to check
-results.
+We will load randomly select a file from our disk, and plot all months
+to check monthly means.
 
 ``` python
 #Selecting one file at random
@@ -122,7 +124,7 @@ varname = list(test.keys())[0]
 test[varname].plot(col = 'month', col_wrap = 3)
 ```
 
-    ## <xarray.plot.facetgrid.FacetGrid object at 0x7f2613c32aa0>
+    ## <xarray.plot.facetgrid.FacetGrid object at 0x7f51ce814ee0>
 
 ``` python
 mpl.show()
