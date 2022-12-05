@@ -53,15 +53,14 @@ import numpy as np
 import pandas as pd
 
 #Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, replace_x_y_nominal_lat_lon, promote_empty_dims, broadcast_lonlat
+from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonlat#, replace_x_y_nominal_lat_lon
 
 #Dealing with file paths
 import os
 from glob import glob
 
 #Plotting
-import matplotlib
-matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 ```
 
 ### Transforming CMIP6 search results into a `Python` variable
@@ -95,18 +94,18 @@ before saving a copy locally.
 def download_CMIP6(df):
   #Getting key information to load CMIP6 data locally from query results
   #URL address (include "#mode=bytes" at the end of the URL if not working)
-  url = df['file_url']
+  url = np.unique(df['file_url'])
   #Variable name
-  var_id = df['variable_id'][0]
+  var_id = np.unique(df['variable_id']).tolist()
   #Start decades
-  dec_0 = int(df['decade_0_start'][0])
-  dec_N = int(df['decade_N_start'][0])
+  dec_0 = int(np.unique(df['decade_0_start']))
+  dec_N = int(np.unique(df['decade_N_start']))
   #File paths
-  out_folder = df['out_full_folder'][0]
+  out_folder = np.unique(df['out_full_folder']).tolist()
   #Ensuring folder exists
-  os.makedirs(out_folder, exist_ok = True)
+  os.makedirs(out_folder[0], exist_ok = True)
   #File name with full path
-  out_file = df['out_path'][0]
+  out_file = np.unique(df['out_path']).tolist()
   
   ds = []
   for ind in df.index:
@@ -122,7 +121,7 @@ def download_CMIP6(df):
   ds = rename_cmip6(ds)
   ds = promote_empty_dims(ds)
   ds = broadcast_lonlat(ds)
-  ds = replace_x_y_nominal_lat_lon(ds)
+  #ds = replace_x_y_nominal_lat_lon(ds)
   
   #Subsetting data - First and last decade and stitching them together
   d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
@@ -132,7 +131,7 @@ def download_CMIP6(df):
   ds_sub = xr.concat([d0, dN], dim = 'time')
   
   #Saving subsetted dataset
-  ds_sub.to_netcdf(out_file)
+  ds_sub.to_netcdf(out_file[0])
 ```
 
 We will loop through each item in the search results.
@@ -155,7 +154,7 @@ its contents.
 
 ``` python
 #Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][52])
+ds = xr.open_dataset(CMIP6_query['out_path'][47])
 #Checking contents
 ds
 ```
@@ -196,13 +195,13 @@ interest and plot these results.
 
 ``` python
 #Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][52]))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][47]))
 #Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][52]].mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][47]].mean('time').plot(levels = 9)
 #Show plot
-matplotlib.pyplot.show()
+plt.show()
 #Close plot if needed
-# matplotlib.pyplot.close()
+#plt.close()
 ```
 
 ![](02_Downloading_CMIP6_data_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
