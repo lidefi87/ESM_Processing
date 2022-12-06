@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-In this notebook, we will use the `ncdf4` and `lattices` libraries in `R` to plot monthly decadal means calculated from the CMIP6 data in our previous notebooks for [`R`]("03a_Calculating_monthly_means_in_R.md") or [`Python`]("03b_Calculating_monthly_means_in_Python.md").
+In this notebook, we will use the `xarray`, `matplotlib` and `cartopy` libraries in `Python` to plot monthly decadal means calculated from the CMIP6 data in our previous notebooks for [`R`]("03a_Calculating_monthly_means_in_R.md") or [`Python`]("03b_Calculating_monthly_means_in_Python.md").
 
 
 ## Loading libraries
@@ -29,14 +29,13 @@ We will use the search results from the first notebook to find the files we need
 
 ```{r}
 #Loading search results
-results_query <- read_csv("../Outputs/results_merged.csv") %>%
-  filter(variable_id == "intpp" & experiment_id == "ssp245") %>% 
+results_query <- read_csv("../Outputs/results_query_intpp.csv") %>% 
   #We will remove any duplicated entries - based on the output file name
   distinct(out_file_name, .keep_all = T) %>% 
   mutate(mean_dec0 = NA,
          mean_decN = NA)
 ```
-
+Adding the full file path for the files containing the mean `intpp` values for the first and last decade for each model.
 ```{r}
 for(i in 1:nrow(results_query)){
   results_query$mean_dec0[i] = list.files(results_query$out_full_folder[i],
@@ -45,12 +44,12 @@ for(i in 1:nrow(results_query)){
   results_query$mean_decN[i] = list.files(results_query$out_full_folder[i],
                                           pattern = paste0("*.intpp.*Mean.", results_query$decade_N_start[i]), 
                                           full.names = T)
-  
 }
 
-#We can check results
+#Checking results
 head(results_query, n = 2)
 ```
+
 ## Loading data using Python
 We will use the `reticulate` package to load `Python` into our environment.
 
@@ -82,6 +81,7 @@ import cartopy.feature as cft
 import matplotlib.gridspec as gridspec
 import matplotlib.cm as mcm
 ```
+
 We will load the query results that we processed at the beginning of this script. This will help us identify the files that are relevant to our work. We will also define a new variable called `months_interest` where we will include the months that we will be plotting in our figures. In this case, we will plot the months of January and September.
 
 ```{python}
@@ -98,10 +98,11 @@ The datasets contain a `months` dimension which indicates to which month the dat
 ```{python}
 data = {}
 for i in range(len(results_query)):
-  #Loading decadal means and ensuring only positive values are kept
+  #Loading decadal means
   dec0 = xr.open_dataset(results_query.mean_dec0[i])
-  dec0 = dec0.where(dec0 >= 0)
   decN = xr.open_dataset(results_query.mean_decN[i])
+  #Removing negative values as they are only present in GFDL-ESM4
+  dec0 = dec0.where(dec0 >= 0)
   decN = decN.where(decN >= 0)
   #Calculating differences between decades
   diff = dec0-decN
@@ -111,10 +112,7 @@ for i in range(len(results_query)):
   diff.intpp.expand_dims({'decade': ['diff']})], dim = 'decade')
   #Changing months values from digits to names
   stack['month'] = [calendar.month_name[m] for m in stack.month.values]
-  #Correcting longitude from 0 to 360 to -180 to +180
-  #lon = stack.x.values
-  #lon[lon > 180] = lon[lon > 180]-360
-  #stack['x'] = sorted(lon)
+  #Getting name of model to use it as key in library
   model = results_query.source_id[i]
   #Keeping months of interest only
   data[model] = stack.loc[:, months_interest]
@@ -124,56 +122,38 @@ for i in range(len(results_query)):
 #Finding range of values in data to create colorbar for plots
 
 ```{python}
-min_intpp = []
-max_intpp = []
-min_diff = []
-max_diff = []
-for mod in data:
-  min_intpp.append(float(data[mod][0:2].min().values))
-  min_diff.append(float(data[mod][2].min().values))
-  max_intpp.append(float(data[mod][0:2].max().values))
-  max_diff.append(float(data[mod][2].max().values))
-  
-min_intpp = min(min_intpp)
-max_intpp = max(max_intpp)
-min_diff = min(min_diff)
-max_diff = max(max_diff)
+min_intpp = min([data[mod][:-1,0,...].min().values for mod in data])
+max_intpp = max([data[mod][:-1,0,...].max().values for mod in data])
+min_diff = min([data[mod][-1,0,...].min().values for mod in data])
+max_diff = max([data[mod][-1,0,...].max().values for mod in data])
 ```
 
-Finally, we will plot the subsetted data.
+We will include a few variables to set up plots below.
 ```{python}
-#Selecting month to be plotted
+#Month of interest
 month_plot = months_interest[0]
-
-#Initialising figure
-fig = plt.figure(figsize = (10, 30))
 
 #Create colormap for differences
 #Ensure colormap diverges at zero regardless of max and min values
-divnorm = mcolors.TwoSlopeNorm(vmin = min_diff*1.1, vcenter = 0, \
+divnorm_diff = mcolors.TwoSlopeNorm(vmin = min_diff*1.1, vcenter = 0,
 vmax = max_diff*1.1)
 #Create new diverging colormap from existing colormaps to make it
 #easy to distinguish positive and negative values
 colors1 = plt.cm.magma(np.linspace(0.25, 1, 128))
 colors2 = cm.cm.ice_r(np.linspace(0.1, 0.75, 128))
 colors = np.vstack((colors1, colors2))
-mymap = mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
+mymap_diff = mcolors.LinearSegmentedColormap.from_list('mymap_diff', colors)
 #Set NA values to show as white
-mymap.set_bad('white')
-
-#Set font family and font size for the entire graph
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.size'] = 8
+mymap_diff.set_bad('white', alpha = 0)
 
 #Create variable containing the Antarctic continent - 50m is medium scale
 land_50m = cft.NaturalEarthFeature('physical', 'land', '50m', edgecolor = 'black', 
-                                   facecolor = 'gray', 
-                                   linewidth = 0.5)
+                                    facecolor = 'gray', linewidth = 0.5)
                                    
 #Defining groups for plots
 decadeName = {'dec0': 'First decade', 
               'decN': 'Last decade', 
-              'difference': 'Difference (first - last)'}
+              'diff': 'Difference (first - last)'}
 
 #Getting names of models to be plotted
 models = [mod for mod in data.keys()]
@@ -181,213 +161,110 @@ models = [mod for mod in data.keys()]
 #Merge seasons and datasets
 counter = zip(cycle(decadeName), np.repeat(models, len(decadeName)))
 
+```
+
+Finally, we will plot the data for the month selected above.
+
+```{python}
+plt.close()
+
+fig, axs = plt.subplots(len(models), len(decadeName), subplot_kw = {'projection': ccrs.Robinson(), 
+'aspect': 1.5}, gridspec_kw = {'wspace': 0.01, 'hspace': 0.01}, layout = 'constrained', 
+figsize = (6.4*5, 4.8*5))
+for i, mod in enumerate(models):
+  x = data[mod].sel(month = month_plot)
+  for j, dec in enumerate(x.decade.values):
+    #Add land and coastlines
+    axs[i, j].add_feature(land_50m)
+    axs[i, j].coastlines(resolution = '50m')
+    if j < 2:
+      p1 = x.sel(decade = dec).plot.pcolormesh('lon', 'lat', ax = axs[i, j], transform = ccrs.PlateCarree(),
+      cmap = cm.cm.speed, vmin = min_intpp, vmax = max_intpp*0.9, add_colorbar = False,
+      norm = mcolors.PowerNorm(gamma = 0.5))
+    else:
+      p2 = x.sel(decade = dec).plot.pcolormesh('lon', 'lat', ax = axs[i, j], transform = ccrs.PlateCarree(),
+      cmap = mymap_diff, norm = divnorm_diff, add_colorbar = False)
+    if i == 0 and j == 1:
+      dec_lab = decadeName[dec]
+      axs[i, j].set_title(f'{dec_lab}\n{mod}')
+    elif i == 0 and j != 1:
+      dec_lab = decadeName[dec]
+      axs[i, j].set_title(f'{dec_lab}\n')
+    elif i > 0 and j == 1:
+      axs[i, j].set_title(mod)
+    else:
+      axs[i, j].set_title('')
+    
+cb = plt.colorbar(p1, ax = axs[i, 0:2], use_gridspec = True, orientation = 'horizontal',
+                  shrink = 0.75, aspect = 30,
+                  label = 'Primary Organic Carbon Production (mol m-2 s-1)')
+                  
+cb_dif = plt.colorbar(p2, ax = axs[i, -1], use_gridspec = True, orientation = 'horizontal',
+                      shrink = 0.9, label = 'Difference (mol m-2 s-1)')
+
+fig.suptitle(f'Mean {month_plot} values', y = 1.1)
+
+plt.savefig('../Figures/test.png', dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
+
+plt.show()
+
+```
+
+```{python}
+plt.close()
+#Initialising figure
+fig = plt.figure()#figsize = (30, 90))
+
+#Set font family and font size for the entire graph
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.size'] = 8
+
 ########
 #Create composite figure using a grid
-#Height ratios - all models the same, last row 1/10 (for colorbar)
+#Height ratios - all models the same, last row 1/10 (for colourbar)
 height_rat = [1]*len(models)
 height_rat.append(0.1)
-gs = gridspec.GridSpec(nrows = len(models)+1,
+gs = gridspec.GridSpec(nrows = 1,
                        ncols = len(decadeName),
-                       height_ratios = height_rat)
+
 #Change the width between each plot
-gs.update(wspace = 0.05, hspace = 0.05)
+#gs.update(wspace = 0.02, hspace = 0.5)
 
 #Initialising axes for plot 
 ax = {}
 
 #Creating plot using loops
 for i, coord in enumerate(counter):
-  ax[i] = fig.add_subplot(gs[i], projection = ccrs.PlateCarree())
+  ax[i] = fig.add_subplot(gs[i], projection = ccrs.Robinson())
   #Initial decade data
   if coord[0] == 'dec0':
     da = data[coord[1]].sel(month = month_plot, decade = coord[0])
-    p1 = da.plot.pcolormesh(ax = ax[i], cmap = cm.cm.speed,
-                   add_colorbar = False)
+    p1 = da.plot.pcolormesh('lon', 'lat', ax = ax[i], transform = ccrs.PlateCarree(),
+    cmap = cm.cm.speed, vmin = min_intpp, vmax = max_intpp, add_colorbar = False,
+    norm = mcolors.PowerNorm(gamma = 0.5))
   #Last decade
-  # elif coord[0] == 'decN':
-  #   da_N = data[coord[1]].sel(month = month_plot, decade = coord[0])
-  #   p1 = da_N.plot.pcolormesh(ax = ax[i], cmap = cm.cm.speed,
-  #                add_colorbar = False)
-  # #Differences
-  # else:
-  #   #Remove zeroes
-  #   da_d = data[coord[1]].sel(month = month_plot, decade = coord[0])
-  #   #Plot data
-  #   p2 = da_d.plot(ax = ax[i], cmap = mymap, norm = divnorm,
-  #   add_colorbar = False)
-  # 
-  # #Set title for each map
-  # if i < 3 and coord[0] == 'decN':
-  #   ax[i].set_title(f'{decadeName[coord[0]]} \n {coord[1]}', y = 1.01)
-  # elif i < 3:
-  #   ax[i].set_title(f'{decadeName[coord[0]]} \n', y = 1.01)
-  # elif i > 3 and coord[0] == 'decN':
-  #   ax[i].set_title(f'{coord[1]}', y = 1.01)
-  # else:
-  #   ax[i].set_title('')
-        
-  #Add land and coastlines
-  ax[i].add_feature(land_50m)
-  ax[i].coastlines(resolution = '50m')
-    
-# ax_col = fig.add_subplot(gs[-1, 0:2])
-# cb = plt.colorbar(p1, cax = ax_col, orientation = 'horizontal', 
-#                   shrink = 0.5,
-#                   label = 'Primary Organic Carbon Production (mol m-2 s-1)')
-# 
-# ax_dif = fig.add_subplot(gs[-1, -1])
-# cb_dif = plt.colorbar(p2, cax = ax_dif, orientation = 'horizontal', 
-#                   extend = 'both', shrink = 0.5,
-#                   label = 'Difference (mol m-2 s-1)')
-# 
-# plt.savefig('../Figures/test.png', dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
-  #os.path.join(folder_out, fn), dpi = 300, 
-   #         bbox_inches = 'tight', pad_inches = 0.05)
-plt.show()
-
-
+  elif coord[0] == 'decN':
+    da_N = data[coord[1]].sel(month = month_plot, decade = coord[0])
+    p1 = da_N.plot.pcolormesh('lon', 'lat', ax = ax[i], transform = ccrs.PlateCarree(),
+    cmap = cm.cm.speed, vmin = min_intpp, vmax = max_intpp, add_colorbar = False,
+    norm = mcolors.PowerNorm(gamma = 0.5))
+  #Differences
+  else:
+    #Remove zeroes
+    da_d = data[coord[1]].sel(month = month_plot, decade = coord[0])
+    #Plot data
+    p2 = da_d.plot.pcolormesh('lon', 'lat', ax = ax[i], transform = ccrs.PlateCarree(),
+    cmap = mymap_diff, norm = divnorm_diff, add_colorbar = False)
+  
+  #Set title for each map to be blank except for when the following conditions are met
+  if i<3:
+    ax[i].set_title(f'{decadeName[coord[0]]}')
+  # if i<3 and coord[0] == 'decN':
+  #   ax[i].set_title(f'{decadeName[coord[0]]}\n{coord[1]}', y = .92)
+  # elif i<3:
+  #   ax[i].set_title(f'{decadeName[coord[0]]}\n', y = .92)
+  # elif i>3 and coord[0] == 'decN':
+  #   ax[i].set_title(f'{coord[1]}', y = 0.92)
+  else:
+    ax[i].set_title('')
 ```
-
-
-
-We will now go through each row of our search results, load the correct `netcdf` file, calculate the difference, and plot the results.
-
-```{r}
-#Changing month indexes to month abbreviations.
-#Looping through each row in our results
-month_Jan <- list()
-month_Sep <- list()
-for(i in 1:nrow(monthly_dec_means)){
-  dec0 <- loading_nc_means(monthly_dec_means$mean_dec0[i], 
-                              monthly_dec_means$variable_id[i],
-                              months_ind)
-  decN <- loading_nc_means(monthly_dec_means$mean_decN[i],
-                              monthly_dec_means$variable_id[i],
-                              months_ind)
-  diff <- dec0$raster-decN$raster
-  name <- monthly_dec_means$source_id[i]
-  month_Jan[[name]] <- list(dec0 = dec0$raster[,,1],
-                          decN = decN$raster[,,1],
-                          diff = diff[,,1],
-                          lon = dec0$lon,
-                          lat = dec0$lat)
-  month_Sep[[name]] <- list(dec0 = dec0$raster[,,2],
-                          decN = decN$raster[,,2],
-                          diff = diff[,,2],
-                          lon = dec0$lon,
-                          lat = dec0$lat)
-
-  #Loading rasters with data for both decades
-  # dec_0[[i]] <- list(name = monthly_dec_means$source_id[i],
-  #                    data = list(loading_nc_means(monthly_dec_means$mean_dec0[i], 
-  #                             monthly_dec_means$variable_id[i],
-  #                             months_ind)))
-  # dec_N[[i]] <- list(name = monthly_dec_means$source_id[i],
-  #                    data = loading_nc_means(monthly_dec_means$mean_decN[i],
-  #                             monthly_dec_means$variable_id[i],
-  #                             months_ind))
-  # diff[[i]] <- dec_0[[i]]$data$raster-dec_0[[i]]$data$raster
-  # 
-  # <- loading_nc_means(monthly_dec_means$mean_dec0[i], 
-  #                             monthly_dec_means$variable_id[i],
-  #                             months_ind)
-  # dec_N <- loading_nc_means(monthly_dec_means$mean_decN[i],
-  #                             monthly_dec_means$variable_id[i],
-  #                             months_ind)
-  # monthly_dec_means$dec0_raster[i] <- list(raster = dec_0$raster)
-  # monthly_dec_means$decN_raster[i] <- list(raster =dec_N$raster)
-  # monthly_dec_means$coordinates[i] <- list(lon = dec_0$lon, 
-  #                                          lat = dec_0$lat)
-  # monthly_dec_means$coordinates[i] <- list(loading_nc_means(monthly_dec_means$mean_decN[i],
-  #                             monthly_dec_means$variable_id[i],
-  #                             months_ind, "coordinates"))
-}
-
-  
-  #Calculate differences per month/decade
-  # diff <- nc_dec0$raster-nc_decN$raster
-  # #Extract coordinates for plotting
-  # lon <- nc_dec0$lon
-  # lat <- as.vector(nc_dec0$lat)
-  # #Create grid for plotting
-  # grid <- expand.grid(lon = lon, lat = lat)
-  # monthly_dec_means$dec0_Jan[i] = nc_dec0$raster[,,"jan"]
-  # monthly_dec_means$dec0_Sep[i] = nc_dec0$raster[,,"sep"]
-
-  
-#Create color bar with 9 groups
-  cutpts <- seq(0, max(max(nc_dec0$raster, na.rm = T), max(nc_decN$raster, na.rm = T)), length = 9)
-  cutpts_diff <- c(seq(min(diff, na.rm = T), -0.1e-8, length = 6),
-                   seq(0.1e-8, max(diff, na.rm = T), length = 5))
-  #Create plots
-  figs_dec0 <- list();  figs_decN <- list(); figs_diff <- list()
-  for(m in 1:length(months_ind)){
-    title <- paste0(monthly_dec_means$source_id[i], " - Decadal mean for", month.name[m] )
-    #Changing NA values to -9999 to color land in plots
-    nc_dec0$raster[,,m][is.na(nc_dec0$raster[,,m])] <- -9999
-    nc_decN$raster[,,m][is.na(nc_decN$raster[,,m])] <- -9999
-    diff[,,m][is.na(diff[,,m])] <- -9999
-    #Plotting results
-    figs_dec0[[m]] <- levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = title, at = c(-Inf, cutpts), 
-                                cuts = 10, col.regions = c("#dcd0c4", RColorBrewer::brewer.pal(9, "PuBuGn")),
-                                contour = T, col = "#a6a6a6")
-    figs_decN[[m]] <- levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, pretty = T, main = title, at = c(-Inf, cutpts), 
-                                cuts = 10, col.regions = c("#dcd0c4", RColorBrewer::brewer.pal(9, "PuBuGn")),
-                                contour = T, col = "#a6a6a6")
-    figs_diff[[m]] <- levelplot(diff[,,m] ~ lon*lat, data = grid,  pretty = T, main = title, at = c(-Inf, cutpts_diff), 
-                                cuts = 12, col.regions = c("#dcd0c4",RColorBrewer::brewer.pal(11, "RdYlBu")),
-                                contour = T, col = "#a6a6a6")
-  #Update names of figures to month abbreviation
-  names(figs_dec0) <- month.abb[months_ind]
-  #names(figs_decN) <- month.abb[months_ind]
-  #names(figs_diff) <- month.abb[months_ind]
-  #Saving figures in tibble
-  monthly_dec_means$fig_dec0[i] <- list(figs_dec0)
-  monthly_dec_means$fig_decN[i] <- list(figs_decN)
-  monthly_dec_means$fig_diff[i] <- list(figs_diff)  
-  }
-  
-  
-  # monthly_dec_means$fig_dec0[i] <- list(dec0 = levelplot(nc_dec0$raster[,,m] ~ lon*lat, data = grid, 
-  #                                                        at = cutpts, cuts = 9, pretty = T,
-  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
-  #                                       decN = levelplot(nc_decN$raster[,,m] ~ lon*lat, data = grid, 
-  #                                                        at = cutpts, cuts = 9, 
-  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")),
-  #                                       diff = levelplot(diff[,,m] ~ lon*lat, data = grid, 
-  #                                                        at = cutpts, cuts = 9, 
-  #                                                        col.regions = RColorBrewer::brewer.pal(9, "PuBuGn")))
-  # b
-  # x <- nc_dec0$raster-nc_decN$raster
-  # monthly_dec_means$nc_dec0[1][[1]]$raster[,,1]
-  # 
-  # monthly_dec_means$nc_dec0[1][[1]]$lat
-  # #Save data frame with combined datasets
-  # monthly_dec_means$nc[i]
-  #   df[i] <- list(raster_stack(test$mean_dec0[i], 
-  #                                 test$mean_decN[i], 
-  #                                 test$variable_id[i], 
-  #                                 months_ind))
-  # 
-  
- 
-#Calculate differences
-diff <- var[,,1]-var[,,2]
-image(lon_180, lat, diff, col = RColorBrewer::brewer.pal(11, "RdYlBu"));
-contour(lon_180, lat, diff, add = T, lty = 0.9);
-title(main = "test_model", sub = "test", font.main = 4);box()
-```
-```{r}
-#More plots
-library(latticeExtra)
-grid <- expand.grid(lon_180 = lon_180, lat = lat)
-cutpts <- seq(min(diff, na.rm = T), max(diff, na.rm = T), length = 11)
-b <- lattice::levelplot(diff ~ lon_180*lat, data = grid, at = cutpts, cuts = 11, 
-                   col.regions=rev(RColorBrewer::brewer.pal(11, "RdYlBu")))
-b
-c(b, b, layout = c(2, 2))
-as.layer(b)
-
-nc_close(nc)
-```
-
