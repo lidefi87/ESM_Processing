@@ -37,7 +37,7 @@ import numpy as np
 import pandas as pd
 
 #Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonlat#, replace_x_y_nominal_lat_lon
+from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonlat, correct_coordinates
 
 #Dealing with file paths
 import os
@@ -88,16 +88,26 @@ def download_CMIP6(df):
     sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
     ds.append(sub)
   ds = xr.concat(ds, dim = 'time')
-    
-  #Standardising CMIP6 data
-  ds = rename_cmip6(ds)
-  ds = promote_empty_dims(ds)
-  ds = broadcast_lonlat(ds)
-  #ds = replace_x_y_nominal_lat_lon(ds)
   
   #Subsetting data - First and last decade and stitching them together
   d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
   dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
+  
+  #Standardising CMIP6 data
+  def standard(dataset):
+    #Renaming all variables so they are the same for all models
+    dataset = rename_cmip6(dataset)
+    #Adding an index if not included
+    dataset = promote_empty_dims(dataset)
+    #Converting coordinates from 1D to 2D arrays
+    dataset = broadcast_lonlat(dataset)
+    #Correcting coordinates if needed
+    dataset = correct_coordinates(dataset)
+    return dataset
+  
+  #Applying standardisation
+  d0 = standard(d0)
+  dN = standard(dN)
   
   #Combining first and last decade into one dataset
   ds_sub = xr.concat([d0, dN], dim = 'time')
