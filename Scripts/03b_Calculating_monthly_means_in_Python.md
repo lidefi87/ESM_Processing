@@ -35,7 +35,9 @@ import xarray as xr
 import os
 from glob import glob
 import pandas as pd
-import matplotlib.pyplot as mpl
+import matplotlib.pyplot as plt
+import cartopy
+import cartopy.crs as ccrs
 ```
 
 ## Loading search results from [first notebook](01_Querying_CMIP6_database.md)
@@ -113,21 +115,19 @@ to check monthly means.
 
 ``` python
 #Selecting one file at random
-file_path = glob(os.path.join(CMIP6_query['out_full_folder'][5], "*.MonthlyMean*.nc"))[0]
+file_path = glob(os.path.join(CMIP6_query['out_full_folder'][13], "*.MonthlyMean*.nc"))[0]
 
 #Loading last dataset saved
 test = xr.open_dataset(file_path)
 #Getting name of variable in dataset
 varname = list(test.keys())[0]
 
-#Plotting all months in dataset
-test[varname].plot(col = 'month', col_wrap = 3)
-```
-
-    ## <xarray.plot.facetgrid.FacetGrid object at 0x7f51ce814ee0>
-
-``` python
-mpl.show()
+#Plotting one month in dataset
+fig = plt.figure()
+ax = fig.add_subplot(111, projection = ccrs.Robinson())
+test = test.sel(month = 1)
+test[varname].plot.pcolormesh('lon', 'lat', ax = ax, transform = ccrs.PlateCarree())
+plt.show()
 ```
 
 ![](03b_Calculating_monthly_means_in_Python_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
