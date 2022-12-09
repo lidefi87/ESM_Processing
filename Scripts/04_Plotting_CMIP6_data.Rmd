@@ -67,6 +67,8 @@ import calendar
 import pandas as pd
 import numpy as np
 from itertools import cycle
+#from xmip.postprocessing import interpolate_grid_label
+#import xesmf
 
 #Packages for plotting
 import matplotlib.pyplot as plt
@@ -168,9 +170,11 @@ Finally, we will plot the data for the month selected above.
 ```{python}
 plt.close()
 
-fig, axs = plt.subplots(len(models), len(decadeName), subplot_kw = {'projection': ccrs.Robinson(), 
-'aspect': 1.5}, gridspec_kw = {'wspace': 0.01, 'hspace': 0.01}, layout = 'constrained', 
-figsize = (6.4*5, 4.8*5))
+#Set font family and font size for the entire graph
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.size'] = 9
+
+fig, axs = plt.subplots(len(models), len(decadeName), subplot_kw = {'projection': ccrs.Robinson()}, gridspec_kw = {'wspace': 0.0, 'hspace': 0.1}, layout = 'constrained', figsize = (7, 12.6))
 for i, mod in enumerate(models):
   x = data[mod].sel(month = month_plot)
   for j, dec in enumerate(x.decade.values):
@@ -194,21 +198,33 @@ for i, mod in enumerate(models):
       axs[i, j].set_title(mod)
     else:
       axs[i, j].set_title('')
-    
+
+#Colorbar settings
+#Get power of scientific notation
+exp = int(np.floor(np.log10(max_intpp)))
 cb = plt.colorbar(p1, ax = axs[i, 0:2], use_gridspec = True, orientation = 'horizontal',
                   shrink = 0.75, aspect = 30,
-                  label = 'Primary Organic Carbon Production (mol m-2 s-1)')
-                  
-cb_dif = plt.colorbar(p2, ax = axs[i, -1], use_gridspec = True, orientation = 'horizontal',
-                      shrink = 0.9, label = 'Difference (mol m-2 s-1)')
+                  label = ('Primary Organic Carbon Production ($10^{}$ mol $m^{-2}$ $s^{-1}$)').format(exp))
+cb.ax.xaxis.get_offset_text().set_visible(False)
 
-fig.suptitle(f'Mean {month_plot} values', y = 1.1)
+#Get power of scientific notation
+exp_d = int(np.floor(np.log10(max_diff)))
+cb_dif = plt.colorbar(p2, ax = axs[i, -1], use_gridspec = True, orientation = 'horizontal',
+                      shrink = 0.9, label = ('Difference ($10^{}$ mol m^{-2} s^{-1})').format(exp_d))
+cb_dif.ax.xaxis.get_offset_text().set_visible(False)
+
+fig.suptitle(f'Mean {month_plot} values', y = 1.05)
 
 plt.savefig('../Figures/test.png', dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
 
-plt.show()
+#plt.show()
 
 ```
+
+
+
+
+
 
 ```{python}
 plt.close()
