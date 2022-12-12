@@ -1,33 +1,43 @@
----
-title: "Plotting CMIP6 ESM data in R"
-author: "Denisse Fierro Arcos"
-date: "2022-10-29"
-output: 
-  github_document:
-    toc: true
-    html_preview: false
----
+Plotting CMIP6 ESM data in R
+================
+Denisse Fierro Arcos
+2022-10-29
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+-   <a href="#introduction" id="toc-introduction">Introduction</a>
+    -   <a href="#loading-libraries" id="toc-loading-libraries">Loading
+        libraries</a>
+    -   <a href="#loading-search-results-from-first-notebook"
+        id="toc-loading-search-results-from-first-notebook">Loading search
+        results from <span>first notebook</span></a>
+    -   <a href="#loading-data-using-python"
+        id="toc-loading-data-using-python">Loading data using Python</a>
+    -   <a href="#loading-relevant-python-libraries"
+        id="toc-loading-relevant-python-libraries">Loading relevant Python
+        libraries</a>
 
 # Introduction
 
-In this notebook, we will use the `xarray`, `matplotlib` and `cartopy` libraries in `Python` to plot monthly decadal means calculated from the CMIP6 data in our previous notebooks for [`R`]("03a_Calculating_monthly_means_in_R.md") or [`Python`]("03b_Calculating_monthly_means_in_Python.md").
-
+In this notebook, we will use the `xarray`, `matplotlib` and `cartopy`
+libraries in `Python` to plot monthly decadal means calculated from the
+CMIP6 data in our previous notebooks for
+[`R`](%2203a_Calculating_monthly_means_in_R.md%22) or
+[`Python`](%2203b_Calculating_monthly_means_in_Python.md%22).
 
 ## Loading libraries
 
-```{r libraries, results = "hide", warnings = F, message = F}
+``` r
 library(tidyverse)
 library(reticulate)
 ```
 
 ## Loading search results from [first notebook](01_Querying_CMIP6_database.md)
-We will use the search results from the first notebook to find the files we need. We will only focus on the `intpp` variable and the `ssp245` scenario. This first part of the script is done in `R` because it offers an easy way to manipulate tabular data.
 
-```{r}
+We will use the search results from the first notebook to find the files
+we need. We will only focus on the `intpp` variable and the `ssp245`
+scenario. This first part of the script is done in `R` because it offers
+an easy way to manipulate tabular data.
+
+``` r
 #Loading search results
 results_query <- read_csv("../Outputs/results_query_intpp.csv") %>% 
   #We will remove any duplicated entries - based on the output file name
@@ -35,8 +45,22 @@ results_query <- read_csv("../Outputs/results_query_intpp.csv") %>%
   mutate(mean_dec0 = NA,
          mean_decN = NA)
 ```
-Adding the full file path for the files containing the mean `intpp` values for the first and last decade for each model.
-```{r}
+
+    ## Rows: 39 Columns: 33
+    ## ── Column specification ────────────────────────────────────────────────────────
+    ## Delimiter: ","
+    ## chr  (23): file_id, dataset_id, mip_era, activity_drs, institution_id, sourc...
+    ## dbl   (7): version, file_size, count, decade_0_start, decade_0_end, decade_N...
+    ## lgl   (1): keep
+    ## dttm  (2): datetime_start, datetime_end
+    ## 
+    ## ℹ Use `spec()` to retrieve the full column specification for this data.
+    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+Adding the full file path for the files containing the mean `intpp`
+values for the first and last decade for each model.
+
+``` r
 for(i in 1:nrow(results_query)){
   results_query$mean_dec0[i] = list.files(results_query$out_full_folder[i],
                                           pattern = paste0("*.intpp.*Mean.", results_query$decade_0_start[i]), 
@@ -50,16 +74,34 @@ for(i in 1:nrow(results_query)){
 head(results_query, n = 2)
 ```
 
-## Loading data using Python
-We will use the `reticulate` package to load `Python` into our environment.
+    ## # A tibble: 2 × 35
+    ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
+    ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
+    ## 1 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
+    ## 2 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… DKRZ    MPI-ES… ssp245  r1i1p1… Omon   
+    ## # … with 26 more variables: frequency <chr>, grid_label <chr>, version <dbl>,
+    ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
+    ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
+    ## #   file_size <dbl>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
+    ## #   tracking_id <chr>, count <dbl>, decade_0_start <dbl>, decade_0_end <dbl>,
+    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, base_file_name <chr>,
+    ## #   out_file_name <chr>, out_full_folder <chr>, out_path <chr>, …
 
-```{r python, results = "hide", warnings = F, message = F}
+## Loading data using Python
+
+We will use the `reticulate` package to load `Python` into our
+environment.
+
+``` r
 use_condaenv("CMIP6_data")
 ```
-## Loading relevant Python libraries
-We will now load relevant libraries that will allow us to load `netcdf` files and prepare plots easily.
 
-```{python}
+## Loading relevant Python libraries
+
+We will now load relevant libraries that will allow us to load `netcdf`
+files and prepare plots easily.
+
+``` python
 import xarray as xr
 import os
 from glob import glob
@@ -76,9 +118,13 @@ import cartopy.feature as cft
 import matplotlib.gridspec as gridspec
 ```
 
-We will load the query results that we processed at the beginning of this script. This will help us identify the files that are relevant to our work. We will also define a new variable called `months_interest` where we will include the months that we will be plotting in our figures. In this case, we will plot the months of January and September.
+We will load the query results that we processed at the beginning of
+this script. This will help us identify the files that are relevant to
+our work. We will also define a new variable called `months_interest`
+where we will include the months that we will be plotting in our
+figures. In this case, we will plot the months of January and September.
 
-```{python}
+``` python
 #We will only keep a handful of columns that are relevant to our plots.
 results_query = r.results_query[['variable_id', 'mean_dec0', 'mean_decN', 'source_id', 'experiment_id']]
 
@@ -88,12 +134,13 @@ months_interest = ['January', 'September']
 #Getting variable of interest
 var = np.unique(results_query['variable_id'])[0]
 exp = np.unique(results_query['experiment_id'])[0]
-
 ```
 
-The datasets contain a `months` dimension which indicates to which month the data is linked to. But, it uses numbers to represent the month. We will update this names are used instead.
+The datasets contain a `months` dimension which indicates to which month
+the data is linked to. But, it uses numbers to represent the month. We
+will update this names are used instead.
 
-```{python}
+``` python
 #Starting an empty dictionary to hold results
 data = dict()
 
@@ -116,12 +163,11 @@ for i in range(len(results_query)):
   model = results_query.source_id[i]
   #Keeping months of interest only
   data[model] = stack.sel(month = months_interest)
-
 ```
 
-#Finding range of values in data to create colorbar for plots
+\#Finding range of values in data to create colorbar for plots
 
-```{python}
+``` python
 #Month of interest
 month_plot = months_interest[0]
 
@@ -133,7 +179,8 @@ max_diff = max([data[mod][-1].sel(month = month_plot).max().values for mod in da
 ```
 
 We will include a few variables to set up plots below.
-```{python}
+
+``` python
 #Create colormap for differences
 #Ensure colormap diverges at zero regardless of max and min values
 divnorm_diff = mcolors.TwoSlopeNorm(vmin = min_diff, vcenter = 0,
@@ -158,12 +205,16 @@ decadeName = {'dec0': 'First decade',
 
 #Getting names of models to be plotted
 models = [mod for mod in data.keys()]
-
 ```
 
-Finally, we will plot the data for the month selected above. For this example, the data has been projected to the [Robinson projection](https://scitools.org.uk/cartopy/docs/latest/reference/projections.html#robinson) using the `cartopy` package because it is visually appealing. A list of other projections available in this package can be found [here](https://scitools.org.uk/cartopy/docs/latest/reference/projections.html#cartopy-projections).
+Finally, we will plot the data for the month selected above. For this
+example, the data has been projected to the [Robinson
+projection](https://scitools.org.uk/cartopy/docs/latest/reference/projections.html#robinson)
+using the `cartopy` package because it is visually appealing. A list of
+other projections available in this package can be found
+[here](https://scitools.org.uk/cartopy/docs/latest/reference/projections.html#cartopy-projections).
 
-```{python}
+``` python
 plt.close()
 
 #Set projection
@@ -238,8 +289,10 @@ plt.savefig(fn, dpi = 300, bbox_inches = 'tight', pad_inches = 0.05)
 
 #The final figure can be seen in the document by activating the line below
 # plt.show()
-
 ```
-We have now finished plotting the mean values for the start and end decade, as well as the differences between them. We have also saved the final figure to our local disk. This ends the series of notebooks guiding you how to query CMIP6 databases, download data, perform basic calculations and visualise results.
 
-
+We have now finished plotting the mean values for the start and end
+decade, as well as the differences between them. We have also saved the
+final figure to our local disk. This ends the series of notebooks
+guiding you how to query CMIP6 databases, download data, perform basic
+calculations and visualise results.
