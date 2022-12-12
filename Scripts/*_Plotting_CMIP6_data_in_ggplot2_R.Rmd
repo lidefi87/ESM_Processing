@@ -154,22 +154,22 @@ for(i in 1:nrow(test)){
                        panel.ontop = T, 
                        panel.background = element_rect(color = NA, fill = NA),
                        panel.grid = element_line(color = "orange", size = 0.3, linetype = "dotted")
-                       ),
-    jan_decN = jan_fig = ggplot()+
-                 geom_stars(data = raster_decN[i][[1]]$Jan)+
-                 scale_fill_distiller(palette = "BuGn", direction = 1,
-                                     guide = guide_colorbar(title = test$variable_id[i],
-                                             title.position = "top",
-                                             title.hjust = 0.5))+
-                 coord_sf()+
-                 labs(title = test$source_id[i])+
-                 theme_bw()+
-                 theme(legend.position = "bottom",
-                       legend.key.width = unit(3, "cm"),
-                       axis.title = element_blank(), 
-                       panel.ontop = T, 
-                       panel.background = element_rect(color = NA, fill = NA),
-                       panel.grid = element_line(color = "orange", size = 0.3, linetype = "dotted")))
+                       ))
+    # jan_decN = jan_fig = ggplot()+
+    #              geom_stars(data = raster_decN[i][[1]]$Jan)+
+    #              scale_fill_distiller(palette = "BuGn", direction = 1,
+    #                                  guide = guide_colorbar(title = test$variable_id[i],
+    #                                          title.position = "top",
+    #                                          title.hjust = 0.5))+
+    #              coord_sf()+
+    #              labs(title = test$source_id[i])+
+    #              theme_bw()+
+    #              theme(legend.position = "bottom",
+    #                    legend.key.width = unit(3, "cm"),
+    #                    axis.title = element_blank(), 
+    #                    panel.ontop = T, 
+    #                    panel.background = element_rect(color = NA, fill = NA),
+                       # panel.grid = element_line(color = "orange", size = 0.3, linetype = "dotted")))
   test$figureJan[i] <- list(figs)
 }
 
