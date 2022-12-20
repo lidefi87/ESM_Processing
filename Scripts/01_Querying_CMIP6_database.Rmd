@@ -21,7 +21,9 @@ Once the correct datasets have been identified, a subset of the dataset will be 
   
   
 ## Loading libraries
-The functions adapted from `epwshiftr`, which are on the accompanying `search_download_functions` script will help us connect to the Australian-based ESGF node hosted by the National Computational Infrastructure ([NCI](http://nci.org.au/)). There are several ESGF nodes available worldwide and they can be found [here](https://aims2.llnl.gov/nodes). If you wish to change the node used in the script use the `node_url` parameter of the `cmip6_index` function to provide the link to the search page for the node. The link should look like this: [https://esgf.nci.org.au/esg-search/search/?](https://esgf.nci.org.au/esg-search/search/?) and it points to a `xml` file, which is similar to a table of contents for the datasets available within the node.
+The functions adapted from `epwshiftr`, which are on the accompanying `search_download_functions` script will help us connect to the Australian-based ESGF node hosted by the National Computational Infrastructure ([NCI](http://nci.org.au/)). There are several ESGF nodes available worldwide and they can be found [here](https://aims2.llnl.gov/nodes). If you wish to change the node used in the script use the `data_node` parameter of the `cmip6_index` function to change the node used in the database search. Otherwise, you can provide the URL address of the search page for the node by the `node_url` parameter. The link points to a `xml` file and should look like this: [https://esgf.nci.org.au/esg-search/search/?](https://esgf.nci.org.au/esg-search/search/?), which is similar to a table of contents for the datasets available within the node.  
+  
+Note that changing the data node is optional, and you either need to provide the `data_node` or the `node_url` to change the default NCI server node used in this notebook.
   
 All other libraries allow us to manipulate and save CMIP6 data.
 
@@ -40,7 +42,7 @@ There are thousands of CMIP6 endorsed model outputs available through ESGF, so p
 - [World Climate Research Programme (WCRP)](https://www.wcrp-climate.org/modelling-wgcm-mip-catalogue/modelling-wgcm-cmip6-endorsed-mips)
 - [CMIP6 overview](https://pcmdi.llnl.gov/CMIP6/)
 - [CMIP6 Guidance for Data Users](https://pcmdi.llnl.gov/CMIP6/Guide/dataUsers.html)
-- [CMIP6 Data Request](https://clipc-services.ceda.ac.uk/dreq/mipVars.html)
+- [CMIP6 Data Request - Variable Search](https://clipc-services.ceda.ac.uk/dreq/mipVars.html)
 - [CMIP6 Global Attributes Definitions](https://docs.google.com/document/d/1h0r8RZr_f3-8egBMMh7aqLwy3snpD6_MrDz1q8n5XUk/edit)
   
 Note that parameters are compulsory, we can provide as many or as little as needed.
@@ -85,15 +87,20 @@ Now we will add the columns we need to automate process into the search results 
 
 ```{r results_review}
 results_query <- results_query %>%
-  #Removing any datasets ending after 2100
-  filter(year(datetime_end) <= 2100) %>% 
-  #Checking if one model has multiple files - Select only files for the first and last decade
+  #Removing any datasets starting after 2100
+  filter(year(datetime_start) <= 2100) %>% 
+  #Checking if there are multiple files for each variable/model/experiment
   group_by(dataset_id) %>% 
+  #Counting files per variable/model/experiment
   mutate(count = n(),
-         decade_0_start = year(datetime_start),
+         #Get the start year for each variable/model/experiment
+         decade_0_start = min(year(datetime_start)),
+         #Calculate the end of the initial decade
          decade_0_end = decade_0_start+9L,
-         decade_N_start = year(datetime_end)-9L,
-         decade_N_end = year(datetime_end),
+         #Get the end year for each variable/model/experiment
+         decade_N_end = max(year(datetime_end)),
+         #Calculate the beginning of the last decade
+         decade_N_start = decade_N_end-9L,
          #Defining the name of the model outputs that we will save locally
          base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
          out_file_name = paste0(base_file_name, ".", decade_0_start, "-", 
@@ -103,8 +110,9 @@ results_query <- results_query %>%
          out_full_folder = file.path(out_folder, source_id, experiment_id),
          #Defining full file path for subset data
          out_path = file.path(out_full_folder, out_file_name),
-         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ T,
-                          count > 2 & year(datetime_start) >= decade_N_start ~ T,
+         #Adding a column that will help us easily identify the files linked to first and last decades
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
                           T ~ F))
 
@@ -146,11 +154,14 @@ results_query_intpp <- results_query_intpp %>%
   mutate(count = n(),
          #Defining the first and last decade of each experiment
          decade_0_start = min(year(datetime_start)),
+         #Calculate the end of the initial decade
          decade_0_end = decade_0_start+9L,
+         #Get the end year for each variable/model/experiment
          decade_N_end = max(year(datetime_end)),
+         #Calculate the beginning of the last decade
          decade_N_start = decade_N_end-9L,
-         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ T,
-                          count > 2 & year(datetime_start) >= decade_N_start ~ T,
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
                           T ~ F)) %>% 
   #Grouping removed - No longer needed
