@@ -114,7 +114,11 @@ results_query <- results_query %>%
          keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
                           count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
-                          T ~ F))
+                          T ~ F),
+         #Adding a column to easily identify decades
+         decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
+                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+                          count <= 2 ~ "both"))
 
 head(results_query, n = 3)
 ```
@@ -163,7 +167,11 @@ results_query_intpp <- results_query_intpp %>%
          keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
                           count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
-                          T ~ F)) %>% 
+                          T ~ F),
+         #Adding a column to easily identify decades
+         decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
+                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+                          count <= 2 ~ "both")) %>% 
   #Grouping removed - No longer needed
   ungroup() %>% 
   filter(keep == T) %>%

@@ -197,19 +197,23 @@ results_query <- results_query %>%
          keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
                           count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
-                          T ~ F))
+                          T ~ F),
+         #Adding a column to easily identify decades
+         decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
+                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+                          count <= 2 ~ "both"))
 
 head(results_query, n = 3)
 ```
 
-    ## # A tibble: 3 × 33
+    ## # A tibble: 3 × 34
     ## # Groups:   dataset_id [3]
     ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
     ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
     ## 1 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
     ## 2 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
     ## 3 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
-    ## # … with 24 more variables: frequency <chr>, grid_label <chr>, version <chr>,
+    ## # … with 25 more variables: frequency <chr>, grid_label <chr>, version <chr>,
     ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
     ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
     ## #   file_size <int>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
@@ -309,7 +313,11 @@ results_query_intpp <- results_query_intpp %>%
          keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
                           count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
                           count <= 2 ~ T,
-                          T ~ F)) %>% 
+                          T ~ F),
+         #Adding a column to easily identify decades
+         decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
+                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+                          count <= 2 ~ "both")) %>% 
   #Grouping removed - No longer needed
   ungroup() %>% 
   filter(keep == T) %>%
@@ -327,19 +335,19 @@ results_query_intpp <- results_query_intpp %>%
 head(results_query_intpp, n = 3)
 ```
 
-    ## # A tibble: 3 × 33
+    ## # A tibble: 3 × 34
     ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
     ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
     ## 1 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
     ## 2 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… DKRZ    MPI-ES… ssp245  r1i1p1… Omon   
     ## 3 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… DKRZ    MPI-ES… ssp245  r1i1p1… Omon   
-    ## # … with 24 more variables: frequency <chr>, grid_label <chr>, version <chr>,
+    ## # … with 25 more variables: frequency <chr>, grid_label <chr>, version <chr>,
     ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
     ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
     ## #   file_size <int>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
     ## #   tracking_id <chr>, count <int>, decade_0_start <dbl>, decade_0_end <dbl>,
-    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, base_file_name <chr>,
-    ## #   out_file_name <chr>, out_full_folder <chr>, out_path <chr>, and …
+    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, decade <chr>,
+    ## #   base_file_name <chr>, out_file_name <chr>, out_full_folder <chr>, …
 
 We will save these results to disk for future reference.
 
