@@ -10,28 +10,59 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(reticulate)
 ```
 
+# Introduction
+Based on the results query obtained from our [previous notebook](01_Querying_CMIP6_database.md), we will download the raw CMIP6 files using `R`. Then, we will switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
 
-## Accessing and downloading subsets of CMIP6 data
-We will now switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
+## Accessing and downloading CMIP6 data
+First, we will load the `R` libraries we will need for this notebook.
 
-### Switching to `Python`
-The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using a `conda environment` which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment.
+```{r}
+library(reticulate)
+library(tidyverse)
+```
+
+We will now load the query results we obtained from the previous notebook. Remember that we added a number of columns that could help us select a subset of files that are relevant to us. For example, if we want only files that linked to the first decade of the dataset, we could use the `decade` column, where `dec0` means that a particular file contains data for the first decade, and `both` means that the file has the first and last decades. 
+
+```{r}
+#Loading the results
+results_query <- read_csv("../Outputs/results_merged.csv")
+
+#Activate if needed - Ignores any files outside the first and last decades of the dataset
+# results_query <- results_query %>% 
+#   filter(keep == T)
+```
+
+We will now download all files into our disk. We will put them in a temporary folder, which we will remove after we have process all files.
+
+```{r}
+for(i in 1:nrow(results_query)){
+  #Creating the temporary folder where raw files will be saved
+  path_out <- file.path(results_query$out_full_folder[i], "raw")
+  #Using their original file name
+  fn <- str_extract(results_query$file_id[i], ".*[0-9].nc")
+  #If temporary file does not exist, create it
+  if(file.exists(path_out) == F){
+    dir.create(path_out, recursive = T)
+  }
+  #Downloading file and saving into temporary folder
+  curl::curl_download(results_query$file_url[i], file.path(path_out, fn))
+  }
+
+```
+
+# Switching to `Python`
+The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using the `CMIP6_data` conda environment, which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment using the `yml` file provided in this repository.
 
 ```{r , results = "hide", warnings = F, message = F}
 #Activating the conda environment containing relevant Python libraries
 use_condaenv("CMIP6_data")
 ```
 
-### Loading `Python` libraries
+## Loading `Python` libraries
 ```{python}
-#Easy access to data hosted online
-import requests
-
 #Loading and manipulating netcdf files
-from netCDF4 import Dataset
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -42,6 +73,7 @@ from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonla
 #Dealing with file paths
 import os
 from glob import glob
+import re
 
 #Plotting
 import matplotlib.pyplot as plt
@@ -60,13 +92,42 @@ CMIP6_query.head(n = 2)
 ```
 
 ### Accessing and saving CMIP6 data
-We will define a new function that will access the CMIP6 data, load into memory, extract years of interest and standardise all variable names before saving a copy locally.
+First, we will define a new function that will download the CMIP6 data of interest.
 
+```{python}
+def load_CMIP6(url, var_id):
+  #Loading data to memory in a temporary file
+  link = requests.get(url).content
+  remote = Dataset(var_id, memory = link)
+  #Loading as xarray dataset
+  sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
+  return sub
+
+```
+
+We will define a second function that will standardise all variable names in CMIP6 model outputs before saving a copy locally.
+
+```{python}
+#Defining function to standardise CMIP6 data
+def standard(dataset):
+  #Renaming all variables so they are the same for all models
+  dataset = rename_cmip6(dataset)
+  #Adding an index if not included
+  dataset = promote_empty_dims(dataset)
+  #Converting coordinates from 1D to 2D arrays
+  dataset = broadcast_lonlat(dataset)
+  #Correcting coordinates if needed so they appear in format 0-360 degrees
+  dataset = correct_coordinates(dataset)
+  return dataset
+
+```
+
+We will now define a function that will access the CMIP6 data, load into memory, extract years of interest, and standardise all variable names before saving a copy locally.
 ```{python}
 def download_CMIP6(df):
   #Getting key information to load CMIP6 data locally from query results
   #URL address (include "#mode=bytes" at the end of the URL if not working)
-  url = np.unique(df['file_url'])
+  url = df['file_url']
   #Variable name
   var_id = np.unique(df['variable_id']).tolist()
   #Start decades
@@ -79,41 +140,44 @@ def download_CMIP6(df):
   #File name with full path
   out_file = np.unique(df['out_path']).tolist()
   
-  ds = []
+  # ds = []
+  # for ind in df.index:
+  #   sub = load_CMIP6(url[ind], var_id)
+  #   ds.append(sub)
+  # del sub
+  # ds = xr.concat(ds, dim = 'time').chunk({"time": 10})
+  # 
+  # if len(df) == 1:
+  #   #Subsetting data - First and last decade and stitching them together
+  #   d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
+  #   dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
+  #   #Combining first and last decade into one dataset
+  #   ds_sub = xr.concat([d0, dN], dim = 'time')
+  # elif df.decade.unique() == 'dec0':
+  #   ds_sub = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
+  # else:
+  #   ds_sub = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
+  # del ds
+  
   for ind in df.index:
-    #Loading data to memory in a temporary file
-    link = requests.get(url[ind]).content
-    remote = Dataset(var_id, memory = link)
-    #Loading as xarray dataset
-    sub = xr.open_dataset(xr.backends.NetCDF4DataStore(remote))
-    ds.append(sub)
-  ds = xr.concat(ds, dim = 'time')
-  
-  #Subsetting data - First and last decade and stitching them together
-  d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
-  dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
-  
-  #Standardising CMIP6 data
-  def standard(dataset):
-    #Renaming all variables so they are the same for all models
-    dataset = rename_cmip6(dataset)
-    #Adding an index if not included
-    dataset = promote_empty_dims(dataset)
-    #Converting coordinates from 1D to 2D arrays
-    dataset = broadcast_lonlat(dataset)
-    #Correcting coordinates if needed
-    dataset = correct_coordinates(dataset)
-    return dataset
-  
-  #Applying standardisation
-  d0 = standard(d0)
-  dN = standard(dN)
-  
-  #Combining first and last decade into one dataset
-  ds_sub = xr.concat([d0, dN], dim = 'time')
-  
-  #Saving subsetted dataset
-  ds_sub.to_netcdf(out_file[0])
+    ds = load_CMIP6(url[ind], var_id)
+    if len(df) == 1:
+      #Subsetting data - First and last decade and stitching them together
+      d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
+      dN = ds.sel(time = slice(str(dec_N), str(dec_N+9)))
+      #Combining first and last decade into one dataset
+      ds_sub = xr.concat([d0, dN], dim = 'time')
+      del d0, dN, ds
+      #Applying standardisation
+      ds_sub = standard(ds_sub)
+      #Saving subsetted dataset
+      ds_sub.to_netcdf(out_file[0])
+    else:
+      fn = os.path.join(out_folder[0], re.split("\\|", df.file_id[ind])[0])
+      #Applying standardisation
+      ds = standard(ds)
+      #Saving subsetted dataset
+      ds.to_netcdf(fn)
 
 ```
 
@@ -122,11 +186,11 @@ We will loop through each item in the search results.
 #Starting loop through each model
 for mod in np.unique(CMIP6_query['source_id']):
   print(mod)
-  mod_id = CMIP6_query[CMIP6_query['source_id'] == mod].reset_index()
+  mod_id = CMIP6_query[CMIP6_query['source_id'] == mod]
   #Group by variable name, experiment ID and grid type before starting data download
-  for names, sub in mod_id.groupby(['experiment_id', 'grid_label', 'variable_id']):
+  for names, sub in mod_id.groupby(['dataset_id', 'decade']):
     print(sub[['experiment_id', 'grid_label', 'variable_id']])
-    download_CMIP6(sub.reset_index())
+    download_CMIP6(sub.reset_index(drop = True))
 
 ```
 
