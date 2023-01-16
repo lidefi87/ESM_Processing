@@ -1,0 +1,183 @@
+---
+title: "Querying CMIP6 database advanced"
+author: "Denisse Fierro Arcos"
+date: "2023-01-16"
+output: 
+  github_document:
+    toc: true
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+Just like in the notebook containing a [simple querying example](01a_Querying_CMIP6_database_simple.md), we will use modified functions from the [epwshiftr](https://github.com/ideas-lab-nus/epwshiftr) package to look for Coupled Model Intercomparison Project Phase 6 (CMIP6) data from the Earth System Grid Federation ([ESGF](https://esgf.nci.org.au/search/cmip6-nci/)) platform.  
+  
+This example provides some more advanced filtering to personalise your query results. This notebook will show you how to look for models that contain data from ocean, sea ice and biogeochemical variables. Further, we will also check the [`ESGF` nodes status](https://aims2.llnl.gov/nodes) to keep query results for active nodes only.  
+  
+For useful resources that will help you with your CMIP6 data query, refer to the first section of the [simple querying example](01a_Querying_CMIP6_database_simple.md).  
+  
+## Loading libraries
+As in the [simple querying example](01a_Querying_CMIP6_database_simple.md), we will load the modified functions from the `epwshiftr` package, which are on the accompanying `search_download_functions` script. Additionally, we will load the `tidyverse` and `lubridate` packages to filter out our query results further and save these results.
+
+```{r libraries, results = "hide", warnings = F, message = F}
+search_CMIP6 <- source("search_download_functions.R")
+library(tidyverse)
+library(lubridate)
+```
+
+## Querying ESGF server
+As previously explained, we will be looking for variables from the ocean, sea ice and biogeochemical models: sea surface temperature (`tos`), sea ice concentration (`siconc`) and primary production (`intpp`).
+
+```{r server_query}
+results_query <- cmip6_index(
+  # This parameter relates to the broad experiment group a dataset belongs to. In this example we consider:
+  # CMIP (past conditions) and ScenarioMIP (future scenarios, SSPs) activities
+  activity = c("ScenarioMIP", "CMIP"),
+  
+  # Standardised name for variables of interest - See CMIP6 Data Request for more information
+  variable = c("tos", "siconc", "intpp"),
+  
+  # This ranges from hours to years - See CMIP6 Data Request for frequency available for each variable
+  frequency = "mon",
+  
+  # Specifying experiment names - Descriptions are available in the CMIP6 documentation
+  experiment = c("ssp245", "ssp585", "historical"),
+  
+  # Specifying variant, which refers to the model run 
+  variant = "r1i1p1f1")
+
+#We will only show the first three results of our search.
+head(results_query, n = 3)
+```
+
+### Reviewing and tidying up search results
+First, we will provide the file path to the folder where we will save our data. Note that you must update this path to a folder where you would like to save the CMIP6 files that contain the data you are interested in.
+
+```{r set_output_folder}
+out_folder <- "/perm_storage/home/data/CMIP6_data"
+```
+
+Since we have over 5,000 matches for our query, we will apply a series of conditions that will help us identify the files we are interested in. The filters applied are as follows:  
+1. Model outputs up to the year 2100  
+2. Files containing data from the first and last decade of the model/experiment  
+3. Model outputs from nodes that are currently active  
+4. Models that contain all three variables  
+  
+Additionally, we will add a few extra columns into our results data frame that will help us automate the extraction and storage of the data we need.  
+  
+First, we will get the current status for all ESGF nodes. We will only keep the nodes with the tag `UP`, which identify the nodes that are currently available
+```{r node_status}
+node_status <- get_data_node() %>% 
+  #Keeping only currently active nodes
+  filter(status == "UP") %>% 
+  #Keeping only the first column
+  select(data_node)
+```
+
+We will use the node status information as our first filter. We will then only keep datasets up to the year 2100.
+
+```{r results_filter1}
+#We will now apply our filter
+results_query <- results_query %>% 
+  #Keep only outputs available from currently active nodes
+  inner_join(node_status, by = "data_node") %>% 
+  #Removing any datasets starting after 2100
+  filter(year(datetime_start) <= 2100) 
+
+#We can remove the node status variable because it is no longer needed
+rm(node_status)
+```
+
+The total number of relevant outputs decreased slightly, but we still have over 5,000 results. In the next chunk we will identify the models that offer data for the three variables we are interested in: sea surface temperature (`tos`), sea ice concentration (`siconc`) and primary production (`intpp`). Models that include only one or two of these variables will be removed from our results.
+
+```{r results_filter2}
+#We will use the filtered results from the previous step
+models_three_var <- results_query %>%
+  #We will use the distinct function to find the unique combinations of source_id (i.e., model) and variable_id columns
+  distinct(source_id, variable_id) %>% 
+  #We will now group by model
+  group_by(source_id) %>% 
+  #and count the times the same models appears in our results
+  count() %>% 
+  #Since we need the model to include three variables, it has to appear 3 times, so we will keep rows with n = 3
+  filter(n == 3) %>% 
+  #We will only keep the column with the model name (source_id)
+  select(source_id)
+
+#We use the information above to keep the models with the three variables of interest
+results_query <- results_query %>% 
+  inner_join(models_three_var, by = "source_id")
+
+#We can remove the three model variable because it is no longer needed
+rm(models_three_var)
+```
+
+Our relevant results have gone down to just over 2,000. We will apply another filter that will help us identify the models that have historical data and at least one $CO_2$ emissions scenario available.
+
+```{r results_filter3}
+#Using the updated result query
+model_two_more_exp <- results_query %>% 
+  #We will count the number of experiments available per model and resolution
+  distinct(source_id, experiment_id, nominal_resolution) %>% 
+  group_by(source_id, nominal_resolution) %>% 
+  mutate(n = n()) %>% 
+  #We need at least two experiments to be available
+  filter(n >= 2) %>% 
+  #One of these experiments must be a historical run
+  filter(experiment_id == "historical") %>% 
+  #We will only keep the model names
+  select(source_id, nominal_resolution)
+
+#We use the information above to keep the models with two runs, of which one must be a historical run
+results_query <- results_query %>% 
+  inner_join(model_two_more_exp, by = c("source_id", "nominal_resolution")) %>% 
+  #Checking if there are multiple files for each variable/model/experiment
+  group_by(dataset_id) %>% 
+  #Counting files per variable/model/experiment
+  mutate(count = n(),
+         #Get the start year for each variable/model/experiment
+         decade_0_start = min(year(datetime_start)),
+         #Calculate the end of the initial decade
+         decade_0_end = decade_0_start+9L,
+         #Get the end year for each variable/model/experiment
+         decade_N_end = max(year(datetime_end)),
+         #Calculate the beginning of the last decade
+         decade_N_start = decade_N_end-9L,
+         #Adding a column that will help us easily identify the files linked to first and last decades
+         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
+                          count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
+                          count <= 2 ~ T,
+                          T ~ F)) %>% 
+  #Keeping only datasets for the first and last decade (i.e., keep = TRUE)
+  filter(keep == T) %>%
+  #Adding a column to easily identify decades
+  mutate(decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
+                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+                          count <= 2 ~ "both"),
+         #Defining the name of the model outputs that we will save locally
+         base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
+         out_file_name = case_when(decade == "dec0" ~ paste0(base_file_name, ".", decade_0_start, "-", 
+                                                             decade_0_end, ".nc"),
+                                   decade == "decN" ~  paste0(base_file_name, ".", decade_N_start, "-", 
+                                          decade_N_end, ".nc"),
+                                   T~ paste0(base_file_name, ".", decade_0_start, "-", 
+                                          decade_0_end, "_", decade_N_start, "-", 
+                                          decade_N_end, ".nc")),
+         #Defining the correct file path for local copies
+         out_full_folder = file.path(out_folder, source_id, experiment_id),
+         #Defining full file path for subset data
+         out_path = file.path(out_full_folder, out_file_name))
+
+#Checking results
+head(results_query, n = 3)
+```
+Now that we are happy with the filtering of the results, we will save them to our local disk for future reference.
+```{r save_query}
+write_csv(results_query, "../Outputs/results_query_tos_siconc.csv")
+```
+
+
+
