@@ -374,23 +374,41 @@ ecological applications.</p>
 <p>These notebooks use both <a href="https://cran.r-project.org/"><code>R</code></a> and <a href="https://www.python.org/downloads/"><code>Python</code></a> to
 query, access, manipulate and download CMIP6 data from ESGF. This
 repository contains all files needed to easily replicate this workflow.
-Note that you must have <a href="https://www.rstudio.com/products/rstudio/download/">RStudio</a>
-and <a href="https://docs.anaconda.com/anaconda/install/index.html">Anaconda</a>
-installed prior to running these scripts.</p>
+Note that you must have installed <a href="https://www.rstudio.com/products/rstudio/download/">RStudio</a>,
+and either <a href="https://docs.anaconda.com/anaconda/install/index.html">Anaconda</a>
+or its smaller version, <a href="https://docs.conda.io/en/latest/miniconda.html">Miniconda</a>,
+prior to following instructions below.</p>
 <div id="installing-python-libraries" class="section level2">
 <h2>Installing <code>Python</code> libraries</h2>
-<p>To install all <code>Python</code> libraries used in this repository,
-use the <code>environment.yml</code> file. You can do this from the
-command line, make sure you navigate to the folder containing the
-<code>environment.yml</code> file, and then type the following line of
-code: <code>conda create -f environment.yml -n CMIP6_data</code>. The
+<p>The <code>environment.yml</code> file contained in this repository
+has a list of <code>Python</code> libraries and dependencies needed to
+run these notebooks. If you are running these notebooks outside the
+<code>CLIOTOP</code> project hosted in the
+<code>ARDC Nectar Research Cloud</code>, you will need to follow the
+instructions below. However, if you are a <code>CLIOTOP</code> user,
+jump to the <a href="#id_##python-for-cliotop-users"><code>Python</code>
+for CLIOTOP users</a> section below.</p>
+<div id="python-for-non-cliotop-users" class="section level3">
+<h3><code>Python</code> for non-CLIOTOP users</h3>
+<p>You will have to download or <code>clone</code> this repository to
+your local machine. To install all relevant <code>Python</code>
+libraries to this project, we will use the <code>environment.yml</code>
+file. Open a <code>command line</code> window and navigate to the folder
+where you downloaded or <code>cloned</code> this repository, which
+contains the <code>environment.yml</code> file.</p>
+<p>Once you are in the correct folder, type the following line of code:
+<code>conda env create -f environment.yml -n CMIP6_data</code>. The
 <code>-f</code> argument points to the file containing all libraries to
 be installed, while the <code>-n</code> contains the name to be given to
-the newly created environment. You can change the name of this
-environment if you prefer, but make sure this name is updated in all
-scripts when calling Python. Look for this line of code:
+the newly created environment. It should be noted that although you can
+give your environment any name, it is not advisable to do because all
+<code>Python</code> notebooks in this repository refer to the conda
+environment by this specific name. However, if you decide to change the
+name of this environment, make sure you update this name in all
+<code>Python</code> scripts. Look for this line of code:
 <code>use_condaenv(&quot;CMIP6_data&quot;)</code> and update the name of the
-environment if you chose to use a different name.</p>
+environment <strong>only</strong> if you chose to use a different
+name.</p>
 <p>You can check if the conda environment has been successfully created
 by typing this line of code in your command line:
 <code>conda env list</code>. The output will include the name and
@@ -400,19 +418,36 @@ similar to the following:</p>
 #
 base                     /file_path_to_environment/base
 CMIP6_data            *  /file_path_to_environment/envs/CMIP6_data</code></pre>
-<p>Once we have successfully install the environment following the steps
-above, we will use the command line once again and type the following
-commands:<br />
-- <code>conda activate CMIP6_data</code> (if you used a different name,
-remember to change <code>CMIP6_data</code> for whatever you named your
-environment). This will activate the environment you created in the
-previous steps.<br />
-- <code>which python</code> (for Linux or Mac) or
-<code>where python</code> (for Windows) to locate where
-<code>Python</code> has been installed.</p>
-<p>Open the file named <code>.Rprofile</code>, replace the folder path
-for the <code>RETICULATE_PYTHON</code> variable in line 2 with the
+<p>Once you have successfully installed the conda environment, you can
+use the command line to activate this environment by typing the
+following command: <code>conda activate CMIP6_data</code> (if you used a
+different name, remember to change <code>CMIP6_data</code> for whatever
+name you gave your environment). This will activate the environment you
+created in the previous steps.</p>
+<p>Finally, you will need to get the path to the local folder where
+<code>Python</code> was installed. You can do this by opening the
+command line and typing either <code>which python</code> (for Linux or
+Mac) or <code>where python</code> (for Windows). You will need this path
+to let <code>R</code> known which version <code>Python</code> we expect
+it to use when running these notebooks. Go back to the folder where you
+downloaded this repository and look for a file named
+<code>.Rprofile</code>. This is a text file that you can open using any
+text editor, or in <code>RStudio</code>. Once you open this file,
+replace the folder path within the quotation marks (““) for the
+<code>RETICULATE_PYTHON</code> variable in line 2 with the
 <code>Python</code>folder path that was printed in the command line.</p>
+</div>
+<div id="python-for-cliotop-users" class="section level3">
+<h3><code>Python</code> for CLIOTOP users</h3>
+<p>If you are a <code>CLIOTOP</code> user, you are in luck! The conda
+environment with all relevant libraries is already installed in this
+project, so there is no need to install anything at all. The
+<code>.Rprofile</code> file already contains the folder path where our
+preferred version of <code>Python</code> is installed. If you would like
+to use a different <code>Python</code> version, you will need to update
+the path in line 2. Make sure your path is written between quotation
+marks (““).</p>
+</div>
 </div>
 <div id="installing-r-libraries" class="section level2">
 <h2>Installing <code>R</code> libraries</h2>
