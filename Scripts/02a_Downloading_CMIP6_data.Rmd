@@ -125,7 +125,7 @@ We can load one of the datasets we saved in the previous step to check its conte
 
 ```{python}
 #Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][47])
+ds = xr.open_dataset(CMIP6_query['out_path'][10])
 #Checking contents
 ds
 ```
@@ -134,9 +134,9 @@ ds
 Finally, we can calculate monthly means over the first decade of interest and plot these results.
 ```{python}
 #Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][47]))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][10]))
 #Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][47]].mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][10]].mean('time').plot(levels = 9)
 #Show plot
 plt.show()
 #Close plot if needed
