@@ -176,19 +176,19 @@ these variables will be removed from our results.
 #We will use the filtered results from the previous step
 models_three_var <- results_query %>%
   #We will use the distinct function to find the unique combinations of source_id (i.e., model) and variable_id columns
-  distinct(source_id, variable_id) %>% 
+  distinct(source_id, grid_label, variable_id) %>% 
   #We will now group by model
-  group_by(source_id) %>% 
+  group_by(source_id, grid_label) %>% 
   #and count the times the same models appears in our results
   count() %>% 
   #Since we need the model to include three variables, it has to appear 3 times, so we will keep rows with n = 3
   filter(n == 3) %>% 
   #We will only keep the column with the model name (source_id)
-  select(source_id)
+  select(-n)
 
 #We use the information above to keep the models with the three variables of interest
 results_query <- results_query %>% 
-  inner_join(models_three_var, by = "source_id")
+  inner_join(models_three_var, by = c("source_id", "grid_label"))
 
 #We can remove the three model variable because it is no longer needed
 rm(models_three_var)
