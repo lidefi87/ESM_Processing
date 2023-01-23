@@ -53,7 +53,7 @@ import numpy as np
 import pandas as pd
 
 #Standardisation of CMIP6 data for easy data post-processing
-from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonlat#, replace_x_y_nominal_lat_lon
+from xmip.preprocessing import rename_cmip6, promote_empty_dims, broadcast_lonlat, correct_coordinates
 
 #Dealing with file paths
 import os
@@ -90,6 +90,26 @@ We will define a new function that will access the CMIP6 data, load into
 memory, extract years of interest and standardise all variable names
 before saving a copy locally.
 
+First, we will define a function that will standardise all variable
+names in CMIP6 model outputs before saving a copy locally.
+
+``` python
+#Defining function to standardise CMIP6 data
+def standard(dataset):
+  #Renaming all variables so they are the same for all models
+  dataset = rename_cmip6(dataset)
+  #Adding an index if not included
+  dataset = promote_empty_dims(dataset)
+  #Converting coordinates from 1D to 2D arrays
+  dataset = broadcast_lonlat(dataset)
+  #Correcting coordinates if needed so they appear in format 0-360 degrees
+  dataset = correct_coordinates(dataset)
+  return dataset
+```
+
+Now we will define the download function, which will include our
+previously defined standardisation function.
+
 ``` python
 def download_CMIP6(df):
   #Getting key information to load CMIP6 data locally from query results
@@ -118,10 +138,7 @@ def download_CMIP6(df):
   ds = xr.concat(ds, dim = 'time')
     
   #Standardising CMIP6 data
-  ds = rename_cmip6(ds)
-  ds = promote_empty_dims(ds)
-  ds = broadcast_lonlat(ds)
-  #ds = replace_x_y_nominal_lat_lon(ds)
+  ds = standard(ds)
   
   #Subsetting data - First and last decade and stitching them together
   d0 = ds.sel(time = slice(str(dec_0), str(dec_0+9)))
@@ -144,7 +161,7 @@ for mod in np.unique(CMIP6_query['source_id']):
   #Group by variable name, experiment ID and grid type before starting data download
   for names, sub in mod_id.groupby(['experiment_id', 'grid_label', 'variable_id']):
     print(sub[['experiment_id', 'grid_label', 'variable_id']])
-    download_CMIP6(sub.reset_index())
+    download_CMIP6(sub.reset_index(drop = True))
 ```
 
 ### Checking subsetted data
@@ -154,7 +171,7 @@ its contents.
 
 ``` python
 #Loading last dataset saved locally
-ds = xr.open_dataset(CMIP6_query['out_path'][10])
+ds = xr.open_dataset(CMIP6_query['out_path'][1])
 #Checking contents
 ds
 ```
@@ -162,33 +179,32 @@ ds
     ## <xarray.Dataset>
     ## Dimensions:      (time: 240, bnds: 2, y: 300, x: 360, vertex: 4)
     ## Coordinates:
-    ##   * time         (time) datetime64[ns] 2015-01-16T12:00:00 ... 2100-12-16T12:...
+    ##   * time         (time) datetime64[ns] 1850-01-16T12:00:00 ... 2014-12-16T12:...
     ##     time_bounds  (time, bnds) datetime64[ns] ...
     ##   * y            (y) int32 0 1 2 3 4 5 6 7 8 ... 292 293 294 295 296 297 298 299
     ##   * x            (x) int32 0 1 2 3 4 5 6 7 8 ... 352 353 354 355 356 357 358 359
     ##     lat          (y, x) float64 ...
     ##     lon          (y, x) float64 ...
-    ##     lat_bounds   (time, y, x, vertex) float64 ...
-    ##     lon_bounds   (time, y, x, vertex) float64 ...
+    ##     lat_bounds   (y, x, vertex) float64 ...
+    ##     lon_bounds   (y, x, vertex) float64 ...
     ##   * bnds         (bnds) int64 0 1
     ##   * vertex       (vertex) int64 0 1 2 3
     ## Data variables:
-    ##     type         |S7 ...
-    ##     siconc       (time, y, x) float32 ...
+    ##     tos          (time, y, x) float32 ...
     ## Attributes: (12/47)
     ##     Conventions:            CF-1.7 CMIP-6.2
-    ##     activity_id:            ScenarioMIP
+    ##     activity_id:            CMIP
     ##     branch_method:          standard
-    ##     branch_time_in_child:   60265.0
-    ##     branch_time_in_parent:  60265.0
-    ##     creation_date:          2020-08-17T00:31:08Z
+    ##     branch_time_in_child:   0.0
+    ##     branch_time_in_parent:  21915.0
+    ##     creation_date:          2019-11-15T15:21:42Z
     ##     ...                     ...
-    ##     variable_id:            siconc
+    ##     variable_id:            tos
     ##     variant_label:          r1i1p1f1
-    ##     version:                v20200817
-    ##     license:                CMIP6 model data produced by CSIRO is licensed un...
+    ##     version:                v20191115
     ##     cmor_version:           3.4.0
-    ##     tracking_id:            hdl:21.14100/41a18599-3d5b-4d43-92b3-ce1c28b2da2a
+    ##     tracking_id:            hdl:21.14100/02850fcc-be64-40de-b7ca-9b8aa6e688a0
+    ##     license:                CMIP6 model data produced by CSIRO is licensed un...
 
 ### Plotting results
 
@@ -197,16 +213,16 @@ interest and plot these results.
 
 ``` python
 #Selecting the first decade
-ds = ds.sel(time = str(CMIP6_query['decade_0_start'][10]))
+ds = ds.sel(time = str(CMIP6_query['decade_0_start'][1]))
 #Calculating monthly means and plotting only the first month
-ds[CMIP6_query['variable_id'][10]].mean('time').plot(levels = 9)
+ds[CMIP6_query['variable_id'][1]].mean('time').plot(levels = 9)
 #Show plot
 plt.show()
 #Close plot if needed
 #plt.close()
 ```
 
-![](02a_Downloading_CMIP6_data_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](02a_Downloading_CMIP6_data_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
 
 In this notebook, we have successfully downloading a subset of the CMIP6
 datasets that we identified in [the first
