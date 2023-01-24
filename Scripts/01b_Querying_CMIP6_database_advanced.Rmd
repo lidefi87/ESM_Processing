@@ -159,13 +159,9 @@ results_query <- results_query %>%
                           count <= 2 ~ "both"),
          #Defining the name of the model outputs that we will save locally
          base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
-         out_file_name = case_when(decade == "dec0" ~ paste0(base_file_name, ".", decade_0_start, "-", 
-                                                             decade_0_end, ".nc"),
-                                   decade == "decN" ~  paste0(base_file_name, ".", decade_N_start, "-", 
-                                          decade_N_end, ".nc"),
-                                   T~ paste0(base_file_name, ".", decade_0_start, "-", 
+         out_file_name = paste0(base_file_name, ".", decade_0_start, "-", 
                                           decade_0_end, "_", decade_N_start, "-", 
-                                          decade_N_end, ".nc")),
+                                          decade_N_end, ".nc"),
          #Defining the correct file path for local copies
          out_full_folder = file.path(out_folder, source_id, experiment_id),
          #Defining full file path for subset data
