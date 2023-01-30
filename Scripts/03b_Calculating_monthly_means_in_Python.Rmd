@@ -17,8 +17,7 @@ In this notebook, we will use the `xarray` library in `Python` to calculate mont
 
 
 ```{r libraries, results = "hide", warnings = F, message = F}
-library(reticulate)
-use_condaenv("CMIP6_data")
+reticulate::use_condaenv("CMIP6_data")
 ```
 ## Loading relevant Python libraries
 ```{python}
