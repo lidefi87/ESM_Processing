@@ -1,0 +1,197 @@
+---
+title: "Subsetting mean data"
+author: "Denisse Fierro Arcos"
+date: "2023-01-25"
+output: 
+  github_document:
+    toc: true
+    html_preview: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+In this notebook, we will extract data for the Southern Ocean and regrid all model outputs so they match the highest resolution dataset available. 
+
+```{r libraries, results = "hide", warnings = F, message = F}
+library(tidyverse)
+```
+
+Checking highest resolution available
+```{r}
+results_query <- read_csv("../Outputs/results_query_tos_siconc.csv")
+
+results_query %>% 
+  group_by(source_id, nominal_resolution) %>% 
+  count()
+```
+The highest resolution available is `MPI-ESM1-2-HR` with a nominal horizontal resolution of 50 km. Before performing calculations across different models with different grids, we will regrid all models to the grid used by `MPI-ESM1-2-HR` using the [`xESMF`](https://xesmf.readthedocs.io/en/latest/) package for `Python`. To interpolate the data during the regridding process, we will use a `bilinear` method. But it is worth noting that there are multiple algorithms available to interpolate data, and the most appropriate choice of algorithm will depend on the data you are dealing with and the type of grid. For more information on interpolation algorithms, see [here](https://xesmf.readthedocs.io/en/latest/notebooks/Compare_algorithms.html), [here](https://desktop.arcgis.com/en/arcmap/latest/tools/3d-analyst-toolbox/comparing-interpolation-methods.htm) and [here](https://climatedataguide.ucar.edu/climate-tools/regridding-overview).  
+  
+We will now switch to `Python` to continue with our analysis.
+
+# Loading Python
+```{r}
+reticulate::use_condaenv("CMIP6_data")
+```
+
+
+## Loading relevant Python libraries
+```{python}
+import xarray as xr
+from glob import glob
+import numpy as np
+import re
+import matplotlib.pyplot as plt
+import cartopy
+import cartopy.crs as ccrs
+from pyproj import Transformer, CRS, transform, Proj
+import xesmf as xe
+```
+## Loading results of CMIP6 database query
+We will get a list of the Monthly Mean files we calculated in [step 3](03b_Calculating_monthly_means_in_Python.md). We will do this with the `glob` library.
+
+```{python}
+#Note that we provide the main folder path and include asterisks (*) for the folders that change name (models and experiments)
+file_paths = [i for i in glob("/perm_storage/home/data/CMIP6_data/*/*/*MonthlyMean*") if 'SO-E'not in i]
+```
+
+## Subsetting data
+In this example, we will select data for the East Antarctic sector of the Southern Ocean. We have defined this area to be bounded by 30$^\circ$S to the north, and between latitudes 0$^\circ$ and 180$^\circ$W.  
+  
+First, we will define a function to subset our data. Our function needs the following inputs:
+- `df` (pandas series) - it represents a single row in the `CMIP6_query` dataframe and contains information about the datasets to be processed
+- `ymin` and `ymax` (numeric) - the represent the latitudinal limits for the area of interest
+- `xmin` and `xmax` (numeric) - the represent the longitudinal limits for the area of interest
+- `file_sufix` (string) - text that will added to the end of the file from which data is subsetted. It allows to easily identify subsetted data  
+  
+```{python}
+def subset_data(path, ymin, ymax, file_sufix):
+  #Loading dataset
+  ds = xr.open_dataset(path)
+  #Checking that x dimension refers to longitude. If not, rename dimensions x for longitude and y for latitude
+  if len(ds.lon[0]) != len(ds.x):
+    ds = ds.rename({'y':'lon_c', 'x': 'lat_c'}).rename({'lon_c': 'x', 'lat_c': 'y'})
+  #Extracting latitude and longitude coordinates
+  # if (ds.lon > 360).values.sum() != 0:
+  #   lon = ds.lon.where(ds.lon <= 360, np.nan).dropna('y')[0].values
+  # else:
+  #   lon = ds.lon[0].values
+  # if (ds.lat < -90).values.sum() + (ds.lat > 90).values.sum() != 0:
+  #   lat = ds.lat.where((ds.lat >= -90) & (ds.lat <= 90), np.nan).mean('x').values
+  # else:
+  #   lat = ds.lat[:,0].values
+  #Subsetting data using boundaries provided
+  ds = ds.where((ds.lat >= ymin) & (ds.lat <= ymax), drop = True)
+  #If x and y dimensions contain indices only, then replace with coordinates
+  # if ds.y.min() >= 0:
+  #   ds.coords['y'] = lat
+  #   ds.coords['x'] = lon
+  #Drop columns and rows with all NA values and drop lat and lon coordinates
+  # ds = ds.sortby('x').sortby('y').dropna('x', 'all').dropna('y', 'all')
+  ds = ds.sortby('y')
+  #Filename to save subsetted data
+  fn_out = re.split('\\.nc', path)[0]
+  fn_out = f'{fn_out}_{file_sufix}.nc'
+  #Saving subsetted dataset
+  ds.to_netcdf(fn_out)
+  ds.close()
+
+```
+
+We will now apply the above function to each Monthly Mean file.
+
+```{python eval = F}
+for f in file_paths:
+  subset_data(f, -90, -30, 'SO-EastAntarctica')
+
+```
+
+## Checking results of subsetted data
+We will first check that the number of files produced (i.e., files containing suffix `SO-EastAntarctica`) and the files used as input are the same.
+```{python}
+#Getting list of all subsetted files
+paths_SO = glob("/perm_storage/home/data/CMIP6_data/*/*/*SO-EastAntarctica*")
+
+#Ensuring we have the same amount of input and output files
+len(file_paths) == len(paths_SO)
+```
+
+
+Since the number of input and output files match, we will plot one of the subsetted files. We selected this file at random.
+```{python}
+#Generating random number and loading data as data array
+ind = np.random.default_rng(12345).integers(low = 0, high = len(paths_SO), size = 1)[0]
+ds = xr.open_dataarray(paths_SO[ind])
+
+#Plotting all months in data array
+plt.close()
+ds.plot(col = 'month', col_wrap = 3)
+plt.show()
+
+```
+
+## Regridding data
+Finally, we will regrid the subsetted data so it matches the highest resolution grid available. From the first section of this notebook, we can see that the highest resolution grid has a nominal horizontal resolution of 50 km and it is used by the `MPI-ESM1-2-HR` model. For this example, we will use primary productivity data (i.e., `intpp`) from the `historical` experiments.
+  
+As a reminder, will use the [`xESMF`](https://xesmf.readthedocs.io/en/latest/) library to regrid our data, and we will use a `bilinear` algorithm.
+
+```{python}
+#Choosing historical experiments for intpp
+hist_intpp = [i for i in paths_SO if re.match('.*historical.*intpp.*', i)]
+high_res = [i for i in hist_intpp if 'MPI-ESM1-2-HR' in i][0]
+low_res = [i for i in hist_intpp if 'MPI-ESM1-2-HR' not in i][0]
+```
+
+
+```{python}
+ds_hr = xr.open_dataarray(high_res)
+ds_hr = ds_hr.drop(('lat', 'lon')).rename({'x': 'lon', 'y': 'lat'})
+
+ds_lr = xr.open_dataarray(low_res)
+ds_lr = ds_hr.drop(('lat', 'lon')).rename({'x': 'lon', 'y': 'lat'})
+
+plt.close()
+ds_lr[0].plot()
+plt.show()
+```
+
+
+```{python}
+
+#trans = Transformer.from_crs('epsg:4326',)
+reg = xe.Regridder(ds_lr, ds_hr, 'bilinear')
+reg_ds2 = reg(ds_lr)
+
+plt.close()
+reg_ds2.plot(col = 'month', col_wrap = 4)
+plt.show()
+```
+
+
+```{python}
+from pyproj.transformer import Transformer, AreaOfInterest
+from pyproj import CRS, transform, Proj
+
+crs_4326 = CRS.from_epsg(4326)
+crs_3976 = CRS.from_epsg(3976)
+crs_to = CRS.from_proj4('+proj=lcc +lon_0=164 +lat_0=-61 +lat_1=-34 +lat_2=-69 +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
+
+transformer = Transformer.from_crs(crs_4326, crs_3976, always_xy = True)
+
+test_lat, test_lon = transformer.transform(reg_ds2.lat, reg_ds2.lon)
+reg_ds2.coords['lat'] = (('y','x'), test_lat)
+reg_ds2.coords['lon'] = (('y','x'), test_lon)
+
+plt.close()
+ax = fig.add_subplot(111)
+reg_ds2[0].plot.pcolormesh('lon', 'lat', ax = ax)
+plt.show()
+
+
+reg_ds2.lon.values
+
+```
+
