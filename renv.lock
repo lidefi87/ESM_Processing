@@ -22,14 +22,6 @@
       "Hash": "b2866e62bab9378c3cc9476a1954226b",
       "Requirements": []
     },
-    "Formula": {
-      "Package": "Formula",
-      "Version": "1.2-4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "cc8c8c4d61346cde1ca60030ff9c241f",
-      "Requirements": []
-    },
     "MASS": {
       "Package": "MASS",
       "Version": "7.3-58",
@@ -66,10 +58,10 @@
     },
     "Rcpp": {
       "Package": "Rcpp",
-      "Version": "1.0.9",
+      "Version": "1.0.10",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "e9c08b94391e9f3f97355841229124f2",
+      "Hash": "e749cae40fa9ef469b6050959517453c",
       "Requirements": []
     },
     "RcppTOML": {
@@ -406,16 +398,6 @@
         "tibble"
       ]
     },
-    "formula.tools": {
-      "Package": "formula.tools",
-      "Version": "1.7.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "935ab0bce1a92340866983f3a97e09de",
-      "Requirements": [
-        "operator.tools"
-      ]
-    },
     "fs": {
       "Package": "fs",
       "Version": "1.5.2",
@@ -593,13 +575,14 @@
     },
     "htmltools": {
       "Package": "htmltools",
-      "Version": "0.5.3",
+      "Version": "0.5.4",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "6496090a9e00f8354b811d1a2d47b566",
+      "Hash": "9d27e99cc90bd701c0a7a63e5923f9b7",
       "Requirements": [
         "base64enc",
         "digest",
+        "ellipsis",
         "fastmap",
         "rlang"
       ]
@@ -727,30 +710,6 @@
         "rlang"
       ]
     },
-    "metR": {
-      "Package": "metR",
-      "Version": "0.13.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "3552377ae590ea05aea5d76ae806811c",
-      "Requirements": [
-        "Formula",
-        "checkmate",
-        "data.table",
-        "digest",
-        "formula.tools",
-        "ggplot2",
-        "gtable",
-        "isoband",
-        "lubridate",
-        "memoise",
-        "plyr",
-        "purrr",
-        "scales",
-        "sp",
-        "stringr"
-      ]
-    },
     "mgcv": {
       "Package": "mgcv",
       "Version": "1.8-40",
@@ -825,14 +784,6 @@
         "askpass"
       ]
     },
-    "operator.tools": {
-      "Package": "operator.tools",
-      "Version": "1.6.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "bd93354f4a2ee4e096e3d7ad33e08b72",
-      "Requirements": []
-    },
     "pillar": {
       "Package": "pillar",
       "Version": "1.8.1",
@@ -849,6 +800,16 @@
         "vctrs"
       ]
     },
+    "pingr": {
+      "Package": "pingr",
+      "Version": "2.0.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "b762f8f7d305f7eb0bab96eb1a3c782a",
+      "Requirements": [
+        "processx"
+      ]
+    },
     "pkgconfig": {
       "Package": "pkgconfig",
       "Version": "2.0.3",
@@ -856,16 +817,6 @@
       "Repository": "CRAN",
       "Hash": "01f28d4278f15c76cddbea05899c5d6f",
       "Requirements": []
-    },
-    "plyr": {
-      "Package": "plyr",
-      "Version": "1.8.7",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "9c17c6ee41639ebdc1d7266546d3b627",
-      "Requirements": [
-        "Rcpp"
-      ]
     },
     "png": {
       "Package": "png",
@@ -1128,16 +1079,6 @@
       "Requirements": [
         "R6",
         "stringr"
-      ]
-    },
-    "sp": {
-      "Package": "sp",
-      "Version": "1.5-0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "2a118bdd2db0a301711e0a9e3e3206d5",
-      "Requirements": [
-        "lattice"
       ]
     },
     "stringi": {

@@ -24,8 +24,7 @@ step: [02_Downloading_CMIP6_data](02_Downloading_CMIP6_data.md). We will
 then save the results as a netcdf files locally.
 
 ``` r
-library(reticulate)
-use_condaenv("CMIP6_data")
+reticulate::use_condaenv("CMIP6_data")
 ```
 
 ## Loading relevant Python libraries
@@ -57,14 +56,14 @@ CMIP6_query = pd.read_csv("../Outputs/results_merged.csv")
 CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
 'decade_N_start': 'int32', 'decade_N_end': 'int32'})
 
-CMIP6_query = CMIP6_query.drop_duplicates(subset = ['out_file_name']).reset_index()
+CMIP6_query = CMIP6_query.drop_duplicates(subset = ['out_file_name']).reset_index(drop = True)
 
 CMIP6_query.head(n = 2)
 ```
 
-    ##    index  ...  keep
-    ## 0      0  ...  True
-    ## 1      1  ...  True
+    ##                                              file_id  ...                                           out_path
+    ## 0  CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1...  ...  /perm_storage/home/data/CMIP6_data/ACCESS-ESM1...
+    ## 1  CMIP6.CMIP.CSIRO.ACCESS-ESM1-5.historical.r1i1...  ...  /perm_storage/home/data/CMIP6_data/ACCESS-ESM1...
     ## 
     ## [2 rows x 34 columns]
 
@@ -97,6 +96,8 @@ def month_mean_CMIP6(df):
   #Saving outputs as netcdf files
   ds0.to_netcdf(out_dec0)
   dsN.to_netcdf(out_decN)
+  
+  ds.close()
 ```
 
 Applying function above for each file saved locally.
@@ -115,7 +116,7 @@ to check monthly means.
 
 ``` python
 #Selecting one file at random
-file_path = glob(os.path.join(CMIP6_query['out_full_folder'][13], "*.MonthlyMean*.nc"))[0]
+file_path = [i for i in glob(os.path.join(CMIP6_query['out_full_folder'][13], "*.MonthlyMean*.nc")) if 'SO' not in i][0]
 
 #Loading last dataset saved
 test = xr.open_dataset(file_path)

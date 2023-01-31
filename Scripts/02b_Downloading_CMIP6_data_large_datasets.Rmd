@@ -19,7 +19,6 @@ Based on the results query obtained from our [previous notebook](01_Querying_CMI
 First, we will load the `R` libraries we will need for this notebook.
 
 ```{r}
-library(reticulate)
 library(tidyverse)
 ```
 
@@ -52,7 +51,7 @@ The `reticulate` package in `R` allow us to use `Python` within an `R` script. W
 
 ```{r , results = "hide", warnings = F, message = F}
 #Activating the conda environment containing relevant Python libraries
-use_condaenv("CMIP6_data")
+reticulate::use_condaenv("CMIP6_data")
 ```
 
 ## Loading `Python` libraries

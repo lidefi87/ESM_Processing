@@ -46,10 +46,10 @@ results_query <- read_csv("../Outputs/results_query_intpp.csv") %>%
          mean_decN = NA)
 ```
 
-    ## Rows: 39 Columns: 33
+    ## Rows: 43 Columns: 34
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: ","
-    ## chr  (23): file_id, dataset_id, mip_era, activity_drs, institution_id, sourc...
+    ## chr  (24): file_id, dataset_id, mip_era, activity_drs, institution_id, sourc...
     ## dbl   (7): version, file_size, count, decade_0_start, decade_0_end, decade_N...
     ## lgl   (1): keep
     ## dttm  (2): datetime_start, datetime_end
@@ -69,23 +69,161 @@ for(i in 1:nrow(results_query)){
                                           pattern = paste0("*.intpp.*Mean.", results_query$decade_N_start[i]), 
                                           full.names = T)
 }
+```
 
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_dec0[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+    ## Warning in results_query$mean_decN[i] <-
+    ## list.files(results_query$out_full_folder[i], : number of items to replace is not
+    ## a multiple of replacement length
+
+``` r
 #Checking results
 head(results_query, n = 2)
 ```
 
-    ## # A tibble: 2 × 35
+    ## # A tibble: 2 × 36
     ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
     ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
     ## 1 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
     ## 2 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… DKRZ    MPI-ES… ssp245  r1i1p1… Omon   
-    ## # … with 26 more variables: frequency <chr>, grid_label <chr>, version <dbl>,
+    ## # … with 27 more variables: frequency <chr>, grid_label <chr>, version <dbl>,
     ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
     ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
     ## #   file_size <dbl>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
     ## #   tracking_id <chr>, count <dbl>, decade_0_start <dbl>, decade_0_end <dbl>,
-    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, base_file_name <chr>,
-    ## #   out_file_name <chr>, out_full_folder <chr>, out_path <chr>, …
+    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, decade <chr>,
+    ## #   base_file_name <chr>, out_file_name <chr>, out_full_folder <chr>, …
 
 ## Loading data using Python
 

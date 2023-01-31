@@ -36,7 +36,6 @@ data.
 First, we will load the `R` libraries we will need for this notebook.
 
 ``` r
-library(reticulate)
 library(tidyverse)
 ```
 
@@ -62,7 +61,7 @@ the first and last decades.
 results_query <- read_csv("../Outputs/results_query_tos_siconc.csv")
 ```
 
-    ## Rows: 377 Columns: 34
+    ## Rows: 371 Columns: 34
     ## ── Column specification ────────────────────────────────────────────────────────
     ## Delimiter: ","
     ## chr  (24): file_id, dataset_id, mip_era, activity_drs, institution_id, sourc...
@@ -102,7 +101,7 @@ repository has instructions on how to create this environment using the
 
 ``` r
 #Activating the conda environment containing relevant Python libraries
-use_condaenv("CMIP6_data")
+reticulate::use_condaenv("CMIP6_data")
 ```
 
 ## Loading `Python` libraries
@@ -283,15 +282,15 @@ ds
 ```
 
     ## <xarray.Dataset>
-    ## Dimensions:  (time: 120, y: 292, x: 362)
+    ## Dimensions:  (time: 240, y: 385, x: 360)
     ## Coordinates:
-    ##   * time     (time) datetime64[ns] 2015-01-16T12:00:00 ... 2024-12-16T12:00:00
-    ##   * y        (y) int32 1 2 3 4 5 6 7 8 9 ... 284 285 286 287 288 289 290 291 292
-    ##   * x        (x) int32 1 2 3 4 5 6 7 8 9 ... 354 355 356 357 358 359 360 361 362
+    ##   * time     (time) object 1850-01-16 12:00:00 ... 2014-12-16 12:00:00
+    ##   * y        (y) int32 1 2 3 4 5 6 7 8 9 ... 377 378 379 380 381 382 383 384 385
+    ##   * x        (x) int32 1 2 3 4 5 6 7 8 9 ... 352 353 354 355 356 357 358 359 360
     ##     lat      (y, x) float64 ...
     ##     lon      (y, x) float64 ...
     ## Data variables:
-    ##     siconc   (time, y, x) float32 ...
+    ##     tos      (time, y, x) float32 ...
 
 ### Plotting results
 

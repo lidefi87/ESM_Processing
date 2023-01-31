@@ -294,4 +294,5 @@ dependencies:
   - esmpy
   - numba
   - xesmf
+  - llvmlite
 prefix: /perm_storage/home/lidefi87/miniconda3/envs/CMIP6_data
