@@ -47,7 +47,8 @@ import re
 import matplotlib.pyplot as plt
 import cartopy
 import cartopy.crs as ccrs
-from pyproj import Transformer, CRS, transform, Proj
+from pyproj.transformer import Transformer, AreaOfInterest
+from pyproj import CRS, transform, Proj
 import xesmf as xe
 ```
 ## Loading results of CMIP6 database query
@@ -59,12 +60,11 @@ file_paths = [i for i in glob("/perm_storage/home/data/CMIP6_data/*/*/*MonthlyMe
 ```
 
 ## Subsetting data
-In this example, we will select data for the East Antarctic sector of the Southern Ocean. We have defined this area to be bounded by 30$^\circ$S to the north, and between latitudes 0$^\circ$ and 180$^\circ$W.  
+In this example, we will select data for the Southern Ocean. We have defined this area to be all waters south of 30$^\circ$S.  
   
 First, we will define a function to subset our data. Our function needs the following inputs:
-- `df` (pandas series) - it represents a single row in the `CMIP6_query` dataframe and contains information about the datasets to be processed
+- `path` (string) - it contains the file path to the dataset to be processed
 - `ymin` and `ymax` (numeric) - the represent the latitudinal limits for the area of interest
-- `xmin` and `xmax` (numeric) - the represent the longitudinal limits for the area of interest
 - `file_sufix` (string) - text that will added to the end of the file from which data is subsetted. It allows to easily identify subsetted data  
   
 ```{python}
@@ -74,23 +74,9 @@ def subset_data(path, ymin, ymax, file_sufix):
   #Checking that x dimension refers to longitude. If not, rename dimensions x for longitude and y for latitude
   if len(ds.lon[0]) != len(ds.x):
     ds = ds.rename({'y':'lon_c', 'x': 'lat_c'}).rename({'lon_c': 'x', 'lat_c': 'y'})
-  #Extracting latitude and longitude coordinates
-  # if (ds.lon > 360).values.sum() != 0:
-  #   lon = ds.lon.where(ds.lon <= 360, np.nan).dropna('y')[0].values
-  # else:
-  #   lon = ds.lon[0].values
-  # if (ds.lat < -90).values.sum() + (ds.lat > 90).values.sum() != 0:
-  #   lat = ds.lat.where((ds.lat >= -90) & (ds.lat <= 90), np.nan).mean('x').values
-  # else:
-  #   lat = ds.lat[:,0].values
   #Subsetting data using boundaries provided
   ds = ds.where((ds.lat >= ymin) & (ds.lat <= ymax), drop = True)
-  #If x and y dimensions contain indices only, then replace with coordinates
-  # if ds.y.min() >= 0:
-  #   ds.coords['y'] = lat
-  #   ds.coords['x'] = lon
-  #Drop columns and rows with all NA values and drop lat and lon coordinates
-  # ds = ds.sortby('x').sortby('y').dropna('x', 'all').dropna('y', 'all')
+  #Rearrange columns by latitude
   ds = ds.sortby('y')
   #Filename to save subsetted data
   fn_out = re.split('\\.nc', path)[0]
@@ -105,15 +91,15 @@ We will now apply the above function to each Monthly Mean file.
 
 ```{python eval = F}
 for f in file_paths:
-  subset_data(f, -90, -30, 'SO-EastAntarctica')
+  subset_data(f, -90, -30, 'SouthernOcean')
 
 ```
 
 ## Checking results of subsetted data
-We will first check that the number of files produced (i.e., files containing suffix `SO-EastAntarctica`) and the files used as input are the same.
+We will first check that the number of files produced (i.e., files containing suffix `SouthernOcean`) and the files used as input are the same.
 ```{python}
 #Getting list of all subsetted files
-paths_SO = glob("/perm_storage/home/data/CMIP6_data/*/*/*SO-EastAntarctica*")
+paths_SO = glob("/perm_storage/home/data/CMIP6_data/*/*/*SouthernOcean*")
 
 #Ensuring we have the same amount of input and output files
 len(file_paths) == len(paths_SO)
@@ -130,7 +116,6 @@ ds = xr.open_dataarray(paths_SO[ind])
 plt.close()
 ds.plot(col = 'month', col_wrap = 3)
 plt.show()
-
 ```
 
 ## Regridding data
@@ -139,59 +124,178 @@ Finally, we will regrid the subsetted data so it matches the highest resolution 
 As a reminder, will use the [`xESMF`](https://xesmf.readthedocs.io/en/latest/) library to regrid our data, and we will use a `bilinear` algorithm.
 
 ```{python}
-#Choosing historical experiments for intpp
+#Getting paths for historical experiments for the high and one low resolution model
 hist_intpp = [i for i in paths_SO if re.match('.*historical.*intpp.*', i)]
 high_res = [i for i in hist_intpp if 'MPI-ESM1-2-HR' in i][0]
 low_res = [i for i in hist_intpp if 'MPI-ESM1-2-HR' not in i][0]
-```
 
-
-```{python}
+#Loading data
 ds_hr = xr.open_dataarray(high_res)
-ds_hr = ds_hr.drop(('lat', 'lon')).rename({'x': 'lon', 'y': 'lat'})
-
 ds_lr = xr.open_dataarray(low_res)
-ds_lr = ds_hr.drop(('lat', 'lon')).rename({'x': 'lon', 'y': 'lat'})
-
-plt.close()
-ds_lr[0].plot()
-plt.show()
 ```
 
+We can check what the data currently looks like.
+```{python}
+#Clearing previuous plots
+plt.close()
+#Creating a figure
+fig = plt.figure()
+#Adding subplot with high resolution model
+ax1 = fig.add_subplot(121)
+#Plotting first month only
+ds_hr[0].plot(ax = ax1)
+#Adding title
+ax1.set_title('High resolution model')
+
+#Adding subplot with low resolution model
+ax2 = fig.add_subplot(122)
+#Plotting first month only
+ds_lr[0].plot(ax = ax2)
+#Adding title
+ax2.set_title('Low resolution model')
+
+#Showing final figure
+plt.show()
+```
+We will regrid data using both datasets loaded with the `xESMF` package.
 
 ```{python}
-
-#trans = Transformer.from_crs('epsg:4326',)
+#Calculating regridder using a bilinear algorithm
 reg = xe.Regridder(ds_lr, ds_hr, 'bilinear')
-reg_ds2 = reg(ds_lr)
 
-plt.close()
-reg_ds2.plot(col = 'month', col_wrap = 4)
-plt.show()
+#Applying regridder to low resolution data 
+reg_ds2 = reg(ds_lr)
 ```
 
+Plotting results of regridded data side by side.
+```{python}
+#Clearing previuous plots
+plt.close()
+#Creating a figure
+fig = plt.figure()
+#Adding subplot with high resolution model
+ax1 = fig.add_subplot(121)
+#Plotting first month only
+ds_lr[0].plot(ax = ax1)
+#Adding title
+ax1.set_title('Low resolution model')
+
+#Adding subplot with low resolution model
+ax2 = fig.add_subplot(122)
+#Plotting first month only
+reg_ds2[0].plot(ax = ax2)
+#Adding title
+ax2.set_title('Regridded model')
+
+#Showing final figure
+plt.show()
+```
+Calculating difference between regridded data and high resolution data, and plotting results.
+```{python}
+#Calculating differences
+dif = reg_ds2 - ds_hr
+
+#Clearing previuous plots
+plt.close()
+#Creating a figure
+fig = plt.figure()
+#Adding subplot with high resolution model
+ax1 = fig.add_subplot(131)
+#Plotting first month only
+ds_hr[0].plot(ax = ax1)
+#Adding title
+ax1.set_title('High resolution model');
+
+#Adding subplot with low resolution model
+ax2 = fig.add_subplot(132)
+#Plotting first month only
+reg_ds2[0].plot(ax = ax2)
+#Adding title
+ax2.set_title('Regridded model');
+
+#Adding subplot with low resolution model
+ax3 = fig.add_subplot(133)
+#Plotting first month only
+dif[0].plot(ax = ax3)
+#Adding title
+ax3.set_title('Difference (regridded - high res)');
+
+#Showing final figure
+plt.show()
+
+```
+
+## Reprojecting
+First, we need to ensure the longitude values go from -180 to +180 instead of 0 to 360 degrees as they currently appear in our datasets.
 
 ```{python}
-from pyproj.transformer import Transformer, AreaOfInterest
-from pyproj import CRS, transform, Proj
+#Changing longitude in both datasets
+ds_hr.coords['lon'] = (ds_hr.coords['lon'] + 180)%360 -180
+reg_ds2.coords['lon'] = (reg_ds2.coords['lon'] + 180)%360 -180
 
-crs_4326 = CRS.from_epsg(4326)
-crs_3976 = CRS.from_epsg(3976)
-crs_to = CRS.from_proj4('+proj=lcc +lon_0=164 +lat_0=-61 +lat_1=-34 +lat_2=-69 +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0')
+#Checking min and max values
+print(reg_ds2.lon.min().values, reg_ds2.lon.max().values); 
+print(ds_hr.lon.min().values, ds_hr.lon.max().values)
+```
 
-transformer = Transformer.from_crs(crs_4326, crs_3976, always_xy = True)
+We have updated the longitude correctly. Now we are ready to reproject our datasets. Note that since both datasets share the same grid, we only need to do the coordinate transformation only once.  The coordinate reference system for the original dataset is WGS84 (EPSG 4326) and we want to reproject to South Pole Stereograhic (EPSG 3976).  
+  
+Note that below, we will create a new variable with the first month of data before assigning the projected coordinates. We do this to show how the projected and unprojected datasets look. However, we can simply update the coordinates of the original variable if we no longer need it.
 
-test_lat, test_lon = transformer.transform(reg_ds2.lat, reg_ds2.lon)
-reg_ds2.coords['lat'] = (('y','x'), test_lat)
-reg_ds2.coords['lon'] = (('y','x'), test_lon)
+```{python}
+#Transforming coordinates from WGS84 to South Pole Stereographic
+lon_stereo, lat_stereo = transform(Proj(init = 'epsg:4326'), Proj(init = 'epsg:3976'), ds_hr.lon, ds_hr.lat)
 
+#We will create a new variable and attach new coordinates
+ds_hr_stereo = ds_hr[0]
+ds_hr_stereo.coords['lon'] = (('y','x'), lon_stereo)
+ds_hr_stereo.coords['lat'] = (('y','x'), lat_stereo)
+
+#Comparing results
 plt.close()
-ax = fig.add_subplot(111)
-reg_ds2[0].plot.pcolormesh('lon', 'lat', ax = ax)
+#Initialising figure
+fig = plt.figure()
+#Adding projected data
+ax1 = fig.add_subplot(121)
+ds_hr_stereo.plot.pcolormesh('lon', 'lat', ax = ax1)
+ax1.set_title('Projected Stereographic');
+#Adding unprojected data
+ax2 = fig.add_subplot(122)
+ds_hr[0].plot.pcolormesh(ax = ax2)
+ax2.set_title('Unprojected');
 plt.show()
 
-
-reg_ds2.lon.values
-
 ```
+
+We can also use any user-defined projections. In this case, we will mask our data to focus on the East Antarctic and then we will apply a Lambert Conformal Conic Projection that will center in this region.  
+
+```{python}
+#Masking data to East Antarctica
+reg_ds2_EA = reg_ds2.where((reg_ds2.lon <= -60) | (reg_ds2.lon >= 30))
+
+#Transforming coordinates from WGS84 to user-defomed Lambert Conformal Conic
+lon_lambert, lat_lambert = transform(Proj(init = 'epsg:4326'), 
+Proj('+proj=lcc +lon_0=164 +lat_0=-61 +lat_1=-34 +lat_2=-69 +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0'), 
+reg_ds2_EA.lon, reg_ds2_EA.lat)
+
+#We will create a new variable and attach new coordinates
+reg_ds2_lambert = reg_ds2_EA[0]
+reg_ds2_lambert.coords['lat'] = (('y','x'), lat_lambert)
+reg_ds2_lambert.coords['lon'] = (('y','x'), lon_lambert)
+
+#Comparing results
+plt.close()
+#Initialising figure
+fig = plt.figure()
+#Adding projected data
+ax1 = fig.add_subplot(121)
+reg_ds2_lambert.plot.pcolormesh('lon', 'lat', ax = ax1)
+ax1.set_title('Projected Lambert');
+#Adding unprojected data
+ax2 = fig.add_subplot(122)
+reg_ds2_EA[0].plot.pcolormesh(ax = ax2)
+ax2.set_title('Unprojected');
+plt.show()
+```
+
 
