@@ -1,5 +1,7 @@
 # Earth System Model (ESM) Processing
 
+
+s
 This repository contains notebooks with instructions on how to access and process Coupled Model Intercomparison Project Phase 6 (CMIP6) data from the Earth System Grid Federation ([ESGF](https://esgf.nci.org.au/search/cmip6-nci/)) platform for ecological applications.
   
 These notebooks use both [`R`](https://cran.r-project.org/) and [`Python`](https://www.python.org/downloads/) to query, access, manipulate and download CMIP6 data from ESGF. This repository contains all files needed to easily replicate this workflow. Note that you must have installed [RStudio](https://www.rstudio.com/products/rstudio/download/), and either [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) or its smaller version, [Miniconda](https://docs.conda.io/en/latest/miniconda.html), prior to following instructions below.  
