@@ -27,7 +27,7 @@ Conda is a software distributor from where you can download `Python` and other p
   
 If you need any additional instructions on how to complete the installation, this [website](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) has installation instructions for every operating system.  
   
-  1.1. **Checking miniconda installation was successful**  
+    1.1. **Checking miniconda installation was successful**  
 The [Anaconda documentation](https://docs.anaconda.com/free/anaconda/install/verify-install/) provides information on how to check your installation has been successful. Note that instructions vary slightly depending on your operating system.  
   
 To verify the installation, we will use the *Anaconda Prompt* (a command line interface for Anaconda) on Windows and macOS, or the *Terminal* on Linux.  
@@ -50,19 +50,19 @@ After opening Anaconda Prompt or the terminal, choose any of the following metho
   
 **Note:** You will need to have `R` installed before installing RStudio.  
   
-  2.1. **Install RTools *(Windows users ONLY)* **  
+    2.1. **Install RTools *(Windows users ONLY)***  
 If you are running `R` in a Windows machine, you will also need to install RTools. This program will allow you to build some `R` packages. RTools installers can be downloaded from [here](https://cran.r-project.org/bin/windows/Rtools/).  
   
 The version of RTools you need to install will depend on the version of `R` you have installed your computer. If you installed `R` while following these instructions, then you will need to download RTools 4.3. Otherwise, check the version of `R` you have installed in your machine to identify the correct RTools version. If you are unsure about the `R` version installed in your machine, you can simply type `version` in the RStudio console.  
   
 If you are NOT using a Windows machine, then you do NOT need to install RTools.  
   
-  2.2. **Install RStudio**   
+    2.2. **Install RStudio**   
 Once you install `R` in your local machine, you will need to install a program that allows you to interact with `R`. This program is known as an integrated development environment (IDE). There are several IDEs that allow you to interact with `R`, but RStudio is by far the most popular. We will use RStudio in our workshop, so we recommend you install it, especially if you are not an experienced `R` user. However, if you are more comfortable using a different IDE, you do not need to install RStudio.  
   
 You can download RStudio Desktop [here](https://posit.co/download/rstudio-desktop/) for free. Once again, ensure you select the installer that matches the operating system in your machine.  
     
-  2.3. **Checking `R` and RStudio installations were successful**  
+    2.3. **Checking `R` and RStudio installations were successful**  
 Open RStudio in your machine. If you cannot find RStudio, follow the instructions below.  
 - **Windows:** Click **Start**, search for “*rstudio”*, and click to open.  
 - **macOS:** Use **Cmd+Space** to open Spotlight Search and type “*rstudio*” to open the program.  
