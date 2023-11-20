@@ -44,7 +44,7 @@ After opening Anaconda Prompt or the terminal, choose any of the following metho
 `R` is distributed by CRAN and is available for Windows, Linux, and MacOS. Installers are available [here](https://cran.r-project.org/). Make sure you download the installer that matches the operating system in your machine.  
 **Note:** You will need to have `R` installed before installing RStudio.  
   
-4. **Install RTools *(Windows users ONLY)* **  
+4. **Install RTools *(Windows users ONLY)***  
 If you are running `R` in a Windows machine, you will also need to install RTools. This program will allow you to build some `R` packages. RTools installers can be downloaded from [here](https://cran.r-project.org/bin/windows/Rtools/).  
 The version of RTools you need to install will depend on the version of `R` you have installed your computer. If you installed `R` while following these instructions, then you will need to download RTools 4.3. Otherwise, check the version of `R` you have installed in your machine to identify the correct RTools version. If you are unsure about the `R` version installed in your machine, you can simply type `version` in the RStudio console.  
 If you are NOT using a Windows machine, then you do NOT need to install RTools.  
