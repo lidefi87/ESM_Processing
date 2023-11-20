@@ -22,12 +22,12 @@ If you are a CLIOTOP user, you are in luck! You will need to copy or clone this 
   
 All notebooks included in this repository can be run in your own computer, but you will need to ensure that all relevant software is installed before you can run them.  
   
-1. Install miniconda (includes `Python` installation)  
+1. **Install miniconda (includes `Python` installation)**  
 Conda is a software distributor from where you can download `Python` and other programming languages, as well as hundreds of data science packages. Anaconda has two versions available: conda and miniconda, and their main difference is their size. We recommend that you install miniconda because it occupies less space in your hard drive. You can download the latest version from this [link](https://docs.conda.io/en/latest/miniconda.html). Note that you will need to select the installer that matches your operating system (e.g., Windows, Linux, MacOS).  
   
 If you need any additional instructions on how to complete the installation, this [website](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) has installation instructions for every operating system.  
   
-1.1. Checking miniconda installation was successful  
+  1.1. **Checking miniconda installation was successful**  
 The [Anaconda documentation](https://docs.anaconda.com/free/anaconda/install/verify-install/) provides information on how to check your installation has been successful. Note that instructions vary slightly depending on your operating system.  
   
 To verify the installation, we will use the *Anaconda Prompt* (a command line interface for Anaconda) on Windows and macOS, or the *Terminal* on Linux.  
@@ -45,24 +45,24 @@ After opening Anaconda Prompt or the terminal, choose any of the following metho
 - Type `python` and press `Enter` or `Return`. This command calls `Python` to start. If miniconda was installed correctly, a `Python` session will beging and the version information will be displayed for `Python` and “Anaconda”. To exit the Python shell, type the command `quit()` and press `Enter` or `Return`.
 - Open Anaconda Navigator by typing the command `anaconda-navigator`. If Anaconda is installed properly, Anaconda Navigator will open.
   
-2. Install `R`   
+2. **Install `R`**   
 `R` is distributed by CRAN and is available for Windows, Linux, and MacOS. Installers are available [here](https://cran.r-project.org/). Make sure you download the installer that matches the operating system in your machine.  
   
 **Note:** You will need to have `R` installed before installing RStudio.  
   
-2.1. Install RTools **(Windows users ONLY)**  
+  2.1. **Install RTools *(Windows users ONLY)* **  
 If you are running `R` in a Windows machine, you will also need to install RTools. This program will allow you to build some `R` packages. RTools installers can be downloaded from [here](https://cran.r-project.org/bin/windows/Rtools/).  
   
 The version of RTools you need to install will depend on the version of `R` you have installed your computer. If you installed `R` while following these instructions, then you will need to download RTools 4.3. Otherwise, check the version of `R` you have installed in your machine to identify the correct RTools version. If you are unsure about the `R` version installed in your machine, you can simply type `version` in the RStudio console.  
   
 If you are NOT using a Windows machine, then you do NOT need to install RTools.  
   
-2.3. Install RStudio   
+  2.2. **Install RStudio**   
 Once you install `R` in your local machine, you will need to install a program that allows you to interact with `R`. This program is known as an integrated development environment (IDE). There are several IDEs that allow you to interact with `R`, but RStudio is by far the most popular. We will use RStudio in our workshop, so we recommend you install it, especially if you are not an experienced `R` user. However, if you are more comfortable using a different IDE, you do not need to install RStudio.  
   
 You can download RStudio Desktop [here](https://posit.co/download/rstudio-desktop/) for free. Once again, ensure you select the installer that matches the operating system in your machine.  
     
-2.4 Checking `R` and RStudio installations were successful  
+  2.3. **Checking `R` and RStudio installations were successful**  
 Open RStudio in your machine. If you cannot find RStudio, follow the instructions below.  
 - **Windows:** Click **Start**, search for “*rstudio”*, and click to open.  
 - **macOS:** Use **Cmd+Space** to open Spotlight Search and type “*rstudio*” to open the program.  
