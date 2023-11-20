@@ -27,7 +27,7 @@ Conda is a software distributor from where you can download `Python` and other p
   
 If you need any additional instructions on how to complete the installation, this [website](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) has installation instructions for every operating system.  
   
-    1. Checking miniconda installation was successful
+    + Checking miniconda installation was successful
 The [Anaconda documentation](https://docs.anaconda.com/free/anaconda/install/verify-install/) provides information on how to check your installation has been successful. Note that instructions vary slightly depending on your operating system.  
   
 To verify the installation, we will use the *Anaconda Prompt* (a command line interface for Anaconda) on Windows and macOS, or the *Terminal* on Linux.  
