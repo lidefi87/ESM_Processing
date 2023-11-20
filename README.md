@@ -96,7 +96,8 @@ If you were able to open RStudio and the console printed something similar to wh
 After setting up your computer, you will need to make sure all libraries used in this repository are available in your machine.  
   
 <details>
-<summary><b> Instructions for CLIOTOP users </b></summary>
+<summary><b> Instructions for CLIOTOP users </b></summary>  
+  
 ### Checking `R` libraries
 We have included an `R` script that automatically checks that all libraries used in these notebooks are installed in your machine. If there are any missing libraries, then the script will install them for you. This script is called `useful_functions.R` and can be found in the `Scripts` folder of our repository.  
   
@@ -116,7 +117,8 @@ As noted before, `Python` libraries are already installed and readily available 
 </details>
   
 <details>
-<summary><b> Instructions for non-CLIOTOP users </b></summary>
+<summary><b> Instructions for non-CLIOTOP users </b></summary>  
+  
 ### Installing `R` libraries
 We have included an `R` script that automatically checks that all libraries used in these notebooks are installed in your machine. If there are any missing libraries, then the script will install them for you. This script is called `useful_functions.R` and can be found in the `Scripts` folder of our repository.  
   
