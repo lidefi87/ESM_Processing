@@ -9,7 +9,8 @@ This repository contains all information needed for you to run all scripts (`R` 
   
 ### Setting up your machine/instance
 <details>
-<summary><b> Instructions for CLIOTOP users </b></summary>
+<summary><b> Instructions for CLIOTOP users </b></summary>  
+  
 If you are a CLIOTOP user, you are in luck! You will need to copy or clone this repository in your home directory, and check the instructions under the [Checking `R` libraries](#checking-r-libraries) to ensure you have all relevant `R` packages installed in your instance.  
   
 `Python` libraries are already installed and readily available for you.  
@@ -17,7 +18,8 @@ If you are a CLIOTOP user, you are in luck! You will need to copy or clone this 
 </details>
   
 <details>
-<summary><b> Instructions for non-CLIOTOP users </b></summary>
+<summary><b> Instructions for non-CLIOTOP users </b></summary>  
+  
 All notebooks included in this repository can be run in your own computer, but you will need to ensure that all relevant software is installed before you can run them.  
   
 1. Install miniconda (includes `Python` installation)  
