@@ -28,4 +28,3 @@ To keep a record of the latest working environment, we will use conda and `conda
   
 **Note 3:** Ensure both the `conda-lock.yml` and the `environment.yml` files are shared in the GitHub repository to keep a record of any changes.  
   
-
