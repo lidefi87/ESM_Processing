@@ -3,14 +3,11 @@ Querying CMIP6 database advanced
 Denisse Fierro Arcos
 2023-01-16
 
--   <a href="#introduction" id="toc-introduction">Introduction</a>
-    -   <a href="#loading-libraries" id="toc-loading-libraries">Loading
-        libraries</a>
-    -   <a href="#querying-esgf-server" id="toc-querying-esgf-server">Querying
-        ESGF server</a>
-        -   <a href="#reviewing-and-tidying-up-search-results"
-            id="toc-reviewing-and-tidying-up-search-results">Reviewing and tidying
-            up search results</a>
+- [Introduction](#introduction)
+  - [Loading libraries](#loading-libraries)
+  - [Querying ESGF server](#querying-esgf-server)
+    - [Reviewing and tidying up search
+      results](#reviewing-and-tidying-up-search-results)
 
 # Introduction
 
@@ -140,14 +137,14 @@ we need.
 
 First, we will get the current status for all ESGF nodes. We will only
 keep the nodes with the tag `UP`, which identify the nodes that are
-currently available
+currently available.
 
 ``` r
 node_status <- get_data_node() %>% 
   #Keeping only currently active nodes
   filter(status == "UP") %>% 
-  #Keeping only the first column
-  select(data_node)
+  #Keep active nodes in vector
+  pull(data_node)
 ```
 
 We will use the node status information as our first filter. We will
@@ -156,8 +153,8 @@ then only keep datasets up to the year 2100.
 ``` r
 #We will now apply our filter
 results_query <- results_query %>% 
-  #Keep only outputs available from currently active nodes
-  inner_join(node_status, by = "data_node") %>% 
+  #Keep only results from currently active nodes
+  filter(data_node %in% node_status) %>% 
   #Removing any datasets starting after 2100
   filter(year(datetime_start) <= 2100) 
 
@@ -194,11 +191,9 @@ results_query <- results_query %>%
 rm(models_three_var)
 ```
 
-Our relevant results have gone down to just over 2,000. We will apply
-another filter that will help us identify the models that have
-historical data and at least one
-![CO_2](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;CO_2 "CO_2")
-emissions scenario available.
+Our relevant results have gone down to 1309. We will apply another
+filter that will help us identify the models that have historical data
+and at least one $CO_2$ emissions scenario available.
 
 ``` r
 #Using the updated result query
@@ -217,28 +212,32 @@ model_two_more_exp <- results_query %>%
 #We use the information above to keep the models with two runs, of which one must be a historical run
 results_query <- results_query %>% 
   inner_join(model_two_more_exp, by = c("source_id", "nominal_resolution")) %>% 
+  #Adding a new column identifying the start and end year
+  mutate(dec_start = year(datetime_start),
+         dec_end = year(datetime_end)) %>% 
   #Checking if there are multiple files for each variable/model/experiment
   group_by(dataset_id) %>% 
   #Counting files per variable/model/experiment
   mutate(count = n(),
          #Get the start year for each variable/model/experiment
-         decade_0_start = min(year(datetime_start)),
+         decade_0_start = min(dec_start),
          #Calculate the end of the initial decade
          decade_0_end = decade_0_start+9L,
          #Get the end year for each variable/model/experiment
-         decade_N_end = max(year(datetime_end)),
+         decade_N_end = max(dec_end),
          #Calculate the beginning of the last decade
          decade_N_start = decade_N_end-9L,
          #Adding a column that will help us easily identify the files linked to first and last decades
-         keep = case_when(count > 2 & year(datetime_start) <= decade_0_end | year(datetime_end) <= decade_0_end ~ T,
-                          count > 2 & year(datetime_end) >= decade_N_start ~ T | year(datetime_start) >= decade_N_start,
+         keep = case_when(count > 2 & dec_start <= decade_0_end | dec_end <= decade_0_end ~ T,
+                          count > 2 & dec_end >= decade_N_start ~ T | dec_start >= decade_N_start,
                           count <= 2 ~ T,
                           T ~ F)) %>% 
   #Keeping only datasets for the first and last decade (i.e., keep = TRUE)
   filter(keep == T) %>%
+  ungroup() %>% 
   #Adding a column to easily identify decades
-  mutate(decade = case_when(count > 2 & year(datetime_start) <= decade_0_end ~ "dec0",
-                          count > 2 & year(datetime_end) >= decade_N_start ~ "decN",
+  mutate(decade = case_when(count > 2 & dec_start <= decade_0_end ~ "dec0",
+                          count > 2 & dec_end >= decade_N_start ~ "decN",
                           count <= 2 ~ "both"),
          #Defining the name of the model outputs that we will save locally
          base_file_name = str_remove(dataset_id, pattern = "\\|.*"),
@@ -254,20 +253,19 @@ results_query <- results_query %>%
 head(results_query, n = 3)
 ```
 
-    ## # A tibble: 3 × 34
-    ## # Groups:   dataset_id [3]
-    ##   file_id        datas…¹ mip_era activ…² insti…³ sourc…⁴ exper…⁵ membe…⁶ table…⁷
-    ##   <chr>          <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>   <chr>  
-    ## 1 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
-    ## 2 CMIP6.CMIP.CS… CMIP6.… CMIP6   CMIP    CSIRO   ACCESS… histor… r1i1p1… Omon   
-    ## 3 CMIP6.Scenari… CMIP6.… CMIP6   Scenar… CSIRO   ACCESS… ssp245  r1i1p1… Omon   
-    ## # … with 25 more variables: frequency <chr>, grid_label <chr>, version <chr>,
-    ## #   nominal_resolution <chr>, variable_id <chr>, variable_long_name <chr>,
-    ## #   variable_units <chr>, datetime_start <dttm>, datetime_end <dttm>,
-    ## #   file_size <int>, data_node <chr>, file_url <chr>, dataset_pid <chr>,
-    ## #   tracking_id <chr>, count <int>, decade_0_start <dbl>, decade_0_end <dbl>,
-    ## #   decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, decade <chr>,
-    ## #   base_file_name <chr>, out_file_name <chr>, out_full_folder <chr>, …
+    ## # A tibble: 3 × 36
+    ##   file_id dataset_id mip_era activity_drs institution_id source_id experiment_id
+    ##   <chr>   <chr>      <chr>   <chr>        <chr>          <chr>     <chr>        
+    ## 1 CMIP6.… CMIP6.CMI… CMIP6   CMIP         CSIRO          ACCESS-E… historical   
+    ## 2 CMIP6.… CMIP6.CMI… CMIP6   CMIP         CSIRO          ACCESS-E… historical   
+    ## 3 CMIP6.… CMIP6.Sce… CMIP6   ScenarioMIP  CSIRO          ACCESS-E… ssp245       
+    ## # ℹ 29 more variables: member_id <chr>, table_id <chr>, frequency <chr>,
+    ## #   grid_label <chr>, version <chr>, nominal_resolution <chr>,
+    ## #   variable_id <chr>, variable_long_name <chr>, variable_units <chr>,
+    ## #   datetime_start <dttm>, datetime_end <dttm>, file_size <int>,
+    ## #   data_node <chr>, file_url <chr>, dataset_pid <chr>, tracking_id <chr>,
+    ## #   dec_start <dbl>, dec_end <dbl>, count <int>, decade_0_start <dbl>,
+    ## #   decade_0_end <dbl>, decade_N_end <dbl>, decade_N_start <dbl>, keep <lgl>, …
 
 Now that we are happy with the filtering of the results, we will save
 them to our local disk for future reference.
