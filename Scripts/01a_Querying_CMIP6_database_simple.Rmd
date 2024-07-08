@@ -26,7 +26,6 @@ All other libraries allow us to manipulate and save CMIP6 data.
 ```{r libraries, results = "hide", warnings = F, message = F}
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
-library(lubridate)
 ```
 
 ## Querying ESGF server
@@ -143,8 +142,9 @@ results_query_intpp <- cmip6_index(variable = "intpp",
 
 head(results_query_intpp, n = 3)
 ```
-We can further refine search results using the `filter` function from the `dplyr` package, which is part of the `tidyverse`. We will remove any datasets going beyond 2100 and those results that do not have their native grid (labelled `gn` under the `grid_label` column). Finally, we will check if a single model has multiple files available for `intpp`, and we will keep only the rows containing the years we are interested in.
-
+  
+We can further refine search results using the `filter` function from the `dplyr` package, which is part of the `tidyverse`. We will remove any datasets going beyond 2100 and those results that do not have their native grid (labelled `gn` under the `grid_label` column). Finally, we will check if a single model has multiple files available for `intpp`, and we will keep only the rows containing the years we are interested in.  
+  
 ```{r}
 results_query_intpp <- results_query_intpp %>%
   #Removing any datasets ending after 2100

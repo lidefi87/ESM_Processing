@@ -8,10 +8,6 @@ output:
     html_preview: false
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Introduction
 
 In this notebook, we will extract data for the Southern Ocean and regrid all model outputs so they match the highest resolution dataset available. 

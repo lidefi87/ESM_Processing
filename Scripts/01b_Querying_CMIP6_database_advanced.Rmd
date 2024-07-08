@@ -21,7 +21,6 @@ As in the [simple querying example](01a_Querying_CMIP6_database_simple.md), we w
 ```{r libraries, results = "hide", warnings = F, message = F}
 search_CMIP6 <- source("search_download_functions.R")
 library(tidyverse)
-library(lubridate)
 ```
 
 ## Querying ESGF server

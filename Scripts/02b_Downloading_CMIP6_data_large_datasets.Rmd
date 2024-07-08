@@ -8,10 +8,6 @@ output:
     html_preview: false
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Introduction
 Based on the results query obtained from our [previous notebook](01_Querying_CMIP6_database.md), we will download the raw CMIP6 files using `R`. Then, we will switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
 
@@ -20,6 +16,7 @@ First, we will load the `R` libraries we will need for this notebook.
 
 ```{r}
 library(tidyverse)
+library(reticulate)
 ```
 
 We will now load the query results we obtained from the previous notebook. Remember that we added a number of columns that could help us select a subset of files that are relevant to us. For example, if we want only files that linked to the first decade of the dataset, we could use the `decade` column, where `dec0` means that a particular file contains data for the first decade, and `both` means that the file has the first and last decades. 
@@ -48,12 +45,7 @@ for(i in 1:nrow(results_query)){
 
 # Switching to `Python`
 The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using the `CMIP6_data` conda environment, which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment using the `yml` file provided in this repository.
-
-```{r , results = "hide", warnings = F, message = F}
-#Activating the conda environment containing relevant Python libraries
-reticulate::use_condaenv("CMIP6_data")
-```
-
+  
 ## Loading `Python` libraries
 ```{python}
 #Loading and manipulating netcdf files

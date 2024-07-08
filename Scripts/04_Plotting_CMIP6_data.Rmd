@@ -8,10 +8,6 @@ output:
     html_preview: false
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Introduction
 
 In this notebook, we will use the `xarray`, `matplotlib` and `cartopy` libraries in `Python` to plot monthly decadal means calculated from the CMIP6 data in our previous notebooks for [`R`]("03a_Calculating_monthly_means_in_R.md") or [`Python`]("03b_Calculating_monthly_means_in_Python.md").

@@ -8,17 +8,12 @@ output:
     html_preview: false
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Introduction
 In this notebook, we will use the `ncdf4` library in `R` to calculate monthly means using the CMIP6 data downloaded in the previous step: [02_Downloading_CMIP6_data](02_Downloading_CMIP6_data.md). We will then save the results as a netcdf files locally.
 
 
 ```{r libraries, results = "hide", warnings = F, message = F}
 library(tidyverse)
-library(lubridate)
 library(ncdf4)
 ```
 

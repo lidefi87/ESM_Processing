@@ -8,17 +8,14 @@ output:
     html_preview: false
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Introduction
 In this notebook, we will use the `xarray` library in `Python` to calculate monthly means using the CMIP6 data downloaded in the previous step:  [02_Downloading_CMIP6_data](02_Downloading_CMIP6_data.md). We will then save the results as a netcdf files locally.
 
 
 ```{r libraries, results = "hide", warnings = F, message = F}
-reticulate::use_condaenv("CMIP6_data")
+library(reticulate)
 ```
+  
 ## Loading relevant Python libraries
 ```{python}
 import xarray as xr
@@ -37,6 +34,7 @@ Recall from the previous step, some models had multiple files available for the 
 
 ```{python}
 CMIP6_query = pd.read_csv("../Outputs/results_merged.csv")
+# CMIP6_query = pd.read_csv("../Outputs/results_query_tos_siconc.csv")
 
 CMIP6_query = CMIP6_query.astype({'decade_0_start': 'int32', 'decade_0_end': 'int32',\
 'decade_N_start': 'int32', 'decade_N_end': 'int32'})
@@ -45,7 +43,7 @@ CMIP6_query = CMIP6_query.drop_duplicates(subset = ['out_file_name']).reset_inde
 
 CMIP6_query.head(n = 2)
 ```
-
+  
 ## Calculating monthly means per decade
 After monthly means are calculated, one netcdf file per decade will be saved locally.
 
@@ -92,7 +90,7 @@ We will load randomly select a file from our disk, and plot all months to check 
 
 ```{python}
 #Selecting one file at random
-file_path = [i for i in glob(os.path.join(CMIP6_query['out_full_folder'][13], "*.MonthlyMean*.nc")) if 'SO' not in i][0]
+file_path = [i for i in glob(os.path.join(CMIP6_query['out_full_folder'][20], "*.MonthlyMean*.nc")) if 'SO' not in i][0]
 
 #Loading last dataset saved
 test = xr.open_dataset(file_path)

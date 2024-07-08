@@ -8,22 +8,15 @@ output:
     html_preview: false
 ---
 
+## Running a `Python` script 
+The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using the `conda environment` defined in the `.Rprofile` file. In simple terms, a `conda environment` is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to access this environment if you are using CLIOTOP, or how to install it if you are running these scripts in your own computer.
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(reticulate)
 ```
-
-
+  
 ## Accessing and downloading subsets of CMIP6 data
 We will now switch to `Python` to make use of the `xmip` library that allow us to standardise variable names for CMIP6 data.
-
-### Switching to `Python`
-The `reticulate` package in `R` allow us to use `Python` within an `R` script. We will be using a `conda environment` which in simple terms is a directory that contains all the `Pyhton` libraries and the dependencies needed to run this script. The `README` file in this repository has instructions on how to create this environment.
-
-```{r , results = "hide", warnings = F, message = F}
-#Activating the conda environment containing relevant Python libraries
-use_condaenv("CMIP6_data")
-```
 
 ### Loading `Python` libraries
 ```{python}
